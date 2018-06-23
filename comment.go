@@ -29,7 +29,9 @@ func commentsByVideo(service *youtube.Service, video Video) []Comment {
 	Info.Printf("Video: [%v] Starting processing comments\n", video.Id)
 	call := service.CommentThreads.List("snippet").VideoId(video.Id).MaxResults(100)
 	response, err := call.Do()
-	if response.HTTPStatusCode != 400 {
+	if response != nil && response.HTTPStatusCode != 400 {
+		handleError(err, "")
+	} else {
 		handleError(err, "")
 	}
 	commentThreadsFromResponse(response, service, video, &comments)
@@ -38,7 +40,9 @@ func commentsByVideo(service *youtube.Service, video Video) []Comment {
 		Info.Printf("Video: [%v] Downloaded %.2f%%\n", video.Id, float64(len(comments))/float64(video.CommentCount)*100)
 		call := service.CommentThreads.List("snippet").VideoId(video.Id).MaxResults(100).PageToken(nextPageToken)
 		response, err := call.Do()
-		if response.HTTPStatusCode != 400 {
+		if response != nil && response.HTTPStatusCode != 400 {
+			handleError(err, "")
+		} else {
 			handleError(err, "")
 		}
 		commentThreadsFromResponse(response, service, video, &comments)
@@ -54,7 +58,9 @@ func commentThreadsFromResponse(response *youtube.CommentThreadListResponse, ser
 		if item.Snippet.TotalReplyCount > 0 {
 			call := service.Comments.List("snippet").ParentId(item.Snippet.TopLevelComment.Id).MaxResults(100)
 			response, err := call.Do()
-			if response.HTTPStatusCode != 400 {
+			if response != nil && response.HTTPStatusCode != 400 {
+				handleError(err, "")
+			} else {
 				handleError(err, "")
 			}
 			for _, i := range response.Items {
@@ -65,7 +71,9 @@ func commentThreadsFromResponse(response *youtube.CommentThreadListResponse, ser
 				Info.Printf("Video: [%v] Downloaded %.2f%%\n", video.Id, float64(len(*commentsPtr))/float64(video.CommentCount)*100)
 				call := service.Comments.List("snippet").ParentId(item.Snippet.TopLevelComment.Id).MaxResults(100).PageToken(nextPageToken)
 				response, err := call.Do()
-				if response.HTTPStatusCode != 400 {
+				if response != nil && response.HTTPStatusCode != 400 {
+					handleError(err, "")
+				} else {
 					handleError(err, "")
 				}
 				nextPageToken = response.NextPageToken
