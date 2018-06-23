@@ -66,7 +66,7 @@ func processChannels(service *youtube.Service) {
 func main() {
 	flag.Parse()
 	if len(*logFile) > 0 {
-		file, err := os.OpenFile("logrus.log", os.O_CREATE|os.O_WRONLY, 0666)
+		file, err := os.OpenFile(*logFile, os.O_CREATE|os.O_WRONLY, 0666)
 		if err == nil {
 			Init(file)
 		} else {
