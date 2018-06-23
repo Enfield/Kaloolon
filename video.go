@@ -71,10 +71,10 @@ func batchLoadVideosInfo(service *youtube.Service, videosMap *map[string]Video, 
 		}
 		call = call.Id(ids)
 		response, err := call.Do()
-		if response != nil && response.HTTPStatusCode != 400 {
-			handleError(err, "")
-		} else {
-			handleError(err, "")
+		if response != nil {
+			if response.HTTPStatusCode != 400 {
+				handleError(err, "HTTPStatusCode:"+string(response.HTTPStatusCode))
+			}
 		}
 		if len(keys) >= 50 {
 			keys = keys[50:]
@@ -122,10 +122,10 @@ func getVideosFromResponse(channelId string, service *youtube.Service, videosMap
 		MaxResults(50).
 		PageToken(pageToken)
 	response, err := call.Do()
-	if response != nil && response.HTTPStatusCode != 400 {
-		handleError(err, "")
-	} else {
-		handleError(err, "")
+	if response != nil {
+		if response.HTTPStatusCode != 400 {
+			handleError(err, "HTTPStatusCode:"+string(response.HTTPStatusCode))
+		}
 	}
 	for _, item := range response.Items {
 		if item.Id.Kind == "youtube#video" {
@@ -156,10 +156,10 @@ func getVideosById(videoIds []string, service *youtube.Service) map[string]Video
 	videosMap := make(map[string]Video)
 	call := service.Videos.List("snippet,contentDetails,statistics").Id(ids)
 	response, err := call.Do()
-	if response != nil && response.HTTPStatusCode != 400 {
-		handleError(err, "")
-	} else {
-		handleError(err, "")
+	if response != nil {
+		if response.HTTPStatusCode != 400 {
+			handleError(err, "HTTPStatusCode:"+string(response.HTTPStatusCode))
+		}
 	}
 	videosMap = addVideosFromVideoListResponseToMap(videosMap, response)
 	return videosMap

@@ -29,10 +29,10 @@ func commentsByVideo(service *youtube.Service, video Video) []Comment {
 	Info.Printf("Video: [%v] Starting processing comments\n", video.Id)
 	call := service.CommentThreads.List("snippet").VideoId(video.Id).MaxResults(100)
 	response, err := call.Do()
-	if response != nil && response.HTTPStatusCode != 400 {
-		handleError(err, "")
-	} else {
-		handleError(err, "")
+	if response != nil {
+		if response.HTTPStatusCode != 400 {
+			handleError(err, "HTTPStatusCode:"+string(response.HTTPStatusCode))
+		}
 	}
 	commentThreadsFromResponse(response, service, video, &comments)
 	nextPageToken := response.NextPageToken
@@ -40,10 +40,10 @@ func commentsByVideo(service *youtube.Service, video Video) []Comment {
 		Info.Printf("Video: [%v] Downloaded %.2f%%\n", video.Id, float64(len(comments))/float64(video.CommentCount)*100)
 		call := service.CommentThreads.List("snippet").VideoId(video.Id).MaxResults(100).PageToken(nextPageToken)
 		response, err := call.Do()
-		if response != nil && response.HTTPStatusCode != 400 {
-			handleError(err, "")
-		} else {
-			handleError(err, "")
+		if response != nil {
+			if response.HTTPStatusCode != 400 {
+				handleError(err, "HTTPStatusCode:"+string(response.HTTPStatusCode))
+			}
 		}
 		commentThreadsFromResponse(response, service, video, &comments)
 		nextPageToken = response.NextPageToken
@@ -58,10 +58,10 @@ func commentThreadsFromResponse(response *youtube.CommentThreadListResponse, ser
 		if item.Snippet.TotalReplyCount > 0 {
 			call := service.Comments.List("snippet").ParentId(item.Snippet.TopLevelComment.Id).MaxResults(100)
 			response, err := call.Do()
-			if response != nil && response.HTTPStatusCode != 400 {
-				handleError(err, "")
-			} else {
-				handleError(err, "")
+			if response != nil {
+				if response.HTTPStatusCode != 400 {
+					handleError(err, "HTTPStatusCode:"+string(response.HTTPStatusCode))
+				}
 			}
 			for _, i := range response.Items {
 				*commentsPtr = append(*commentsPtr, comment(i, video.Id))
@@ -71,10 +71,10 @@ func commentThreadsFromResponse(response *youtube.CommentThreadListResponse, ser
 				Info.Printf("Video: [%v] Downloaded %.2f%%\n", video.Id, float64(len(*commentsPtr))/float64(video.CommentCount)*100)
 				call := service.Comments.List("snippet").ParentId(item.Snippet.TopLevelComment.Id).MaxResults(100).PageToken(nextPageToken)
 				response, err := call.Do()
-				if response != nil && response.HTTPStatusCode != 400 {
-					handleError(err, "")
-				} else {
-					handleError(err, "")
+				if response != nil {
+					if response.HTTPStatusCode != 400 {
+						handleError(err, "HTTPStatusCode:"+string(response.HTTPStatusCode))
+					}
 				}
 				nextPageToken = response.NextPageToken
 				for _, item := range response.Items {
