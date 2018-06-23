@@ -44,9 +44,9 @@ func commentsByVideo(service *youtube.Service, video Video) []Comment {
 			if response.HTTPStatusCode != 400 {
 				handleError(err, "HTTPStatusCode:"+string(response.HTTPStatusCode))
 			}
+			commentThreadsFromResponse(response, service, video, &comments)
+			nextPageToken = response.NextPageToken
 		}
-		commentThreadsFromResponse(response, service, video, &comments)
-		nextPageToken = response.NextPageToken
 	}
 	Info.Printf("Video: [%v] Downloaded 100%%. Total: %d\n", video.Id, len(comments))
 	return comments
@@ -62,23 +62,23 @@ func commentThreadsFromResponse(response *youtube.CommentThreadListResponse, ser
 				if response.HTTPStatusCode != 400 {
 					handleError(err, "HTTPStatusCode:"+string(response.HTTPStatusCode))
 				}
-			}
-			for _, i := range response.Items {
-				*commentsPtr = append(*commentsPtr, comment(i, video.Id))
-			}
-			nextPageToken := response.NextPageToken
-			for len(nextPageToken) > 0 {
-				Info.Printf("Video: [%v] Downloaded %.2f%%\n", video.Id, float64(len(*commentsPtr))/float64(video.CommentCount)*100)
-				call := service.Comments.List("snippet").ParentId(item.Snippet.TopLevelComment.Id).MaxResults(100).PageToken(nextPageToken)
-				response, err := call.Do()
-				if response != nil {
-					if response.HTTPStatusCode != 400 {
-						handleError(err, "HTTPStatusCode:"+string(response.HTTPStatusCode))
-					}
+				for _, i := range response.Items {
+					*commentsPtr = append(*commentsPtr, comment(i, video.Id))
 				}
-				nextPageToken = response.NextPageToken
-				for _, item := range response.Items {
-					*commentsPtr = append(*commentsPtr, comment(item, video.Id))
+				nextPageToken := response.NextPageToken
+				for len(nextPageToken) > 0 {
+					Info.Printf("Video: [%v] Downloaded %.2f%%\n", video.Id, float64(len(*commentsPtr))/float64(video.CommentCount)*100)
+					call := service.Comments.List("snippet").ParentId(item.Snippet.TopLevelComment.Id).MaxResults(100).PageToken(nextPageToken)
+					response, err := call.Do()
+					if response != nil {
+						if response.HTTPStatusCode != 400 {
+							handleError(err, "HTTPStatusCode:"+string(response.HTTPStatusCode))
+						}
+						nextPageToken = response.NextPageToken
+						for _, item := range response.Items {
+							*commentsPtr = append(*commentsPtr, comment(item, video.Id))
+						}
+					}
 				}
 			}
 		}

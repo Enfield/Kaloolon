@@ -161,6 +161,7 @@ func getVideosById(videoIds []string, service *youtube.Service) map[string]Video
 			handleError(err, "HTTPStatusCode:"+string(response.HTTPStatusCode))
 		}
 	}
+	//TODO handle nil response
 	videosMap = addVideosFromVideoListResponseToMap(videosMap, response)
 	return videosMap
 }
