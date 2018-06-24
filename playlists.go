@@ -23,10 +23,10 @@ func getPlaylistVideos(playlistId string, service *youtube.Service, videos *map[
 	}
 	pageToken := response.NextPageToken
 	for len(pageToken) > 0 {
-		call := service.PlaylistItems.List("contentDetails").
-			Id(playlistId).MaxResults(50).PageToken(pageToken)
-		response, err := call.Do()
-		i := 0
+		call = service.PlaylistItems.List("contentDetails").
+			PlaylistId(playlistId).MaxResults(50).PageToken(pageToken)
+		response, err = call.Do()
+		i = 0
 		for !handleApiError(err) {
 			if i == 5 {
 				Error.Fatalf(err.Error())
