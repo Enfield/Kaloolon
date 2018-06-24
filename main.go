@@ -62,11 +62,10 @@ func processChannels(service *youtube.Service) {
 	}
 	wg.Wait()
 }
-
 func main() {
 	flag.Parse()
 	if len(*logFile) > 0 {
-		file, err := os.OpenFile(*logFile, os.O_CREATE|os.O_WRONLY, 0666)
+		file, err := os.OpenFile(*logFile, os.O_CREATE|os.O_WRONLY, 0644)
 		if err == nil {
 			Init(file)
 		} else {
@@ -81,7 +80,7 @@ func main() {
 		}
 		service, err := youtube.New(client)
 		if err != nil {
-			handleError(err, "")
+			handleError(err, "Initialize error")
 		}
 		if len(*channels) > 0 {
 			processChannels(service)
@@ -90,7 +89,7 @@ func main() {
 			processVideos(service)
 		}
 	} else {
-		Info.Println("Please provide channel or video to process.")
+		Error.Println("Please provide channel or video to process.")
 	}
 }
 //Kaloolon

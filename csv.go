@@ -14,7 +14,7 @@ const commentsFolderName = "comments"
 func mkDir(name string) {
 	path := filepath.Join(".", name)
 	err := os.MkdirAll(path, os.ModePerm)
-	handleError(err, "")
+	handleError(err, "Can't create folder")
 }
 
 func videos2csv(videosMap map[string]Video, path string) {
@@ -28,7 +28,7 @@ func videos2csv(videosMap map[string]Video, path string) {
 	w := struct2csv.NewWriter(buff)
 	err := w.WriteStructs(videos)
 	if err != nil {
-		handleError(err, "")
+		handleError(err, "Can't save videos to csv file")
 	}
 	var filePath string
 	if len(path) > 0 {
@@ -64,7 +64,7 @@ func comments2csv(comments []Comment, path string) {
 		w := struct2csv.NewWriter(buff)
 		err := w.WriteStructs(comments)
 		if err != nil {
-			handleError(err, "")
+			handleError(err, "Can't save comments to csv file")
 		}
 		ioutil.WriteFile(filePath, buff.Bytes(), 0644)
 	}

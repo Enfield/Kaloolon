@@ -25,14 +25,17 @@ type Comment struct {
 }
 
 func commentsByVideo(service *youtube.Service, video Video) []Comment {
-	comments := make([]Comment,0)
+	comments := make([]Comment, 0)
 	Info.Printf("Video: [%v] Starting processing comments\n", video.Id)
 	call := service.CommentThreads.List("snippet").VideoId(video.Id).MaxResults(100)
 	response, err := call.Do()
-	if response != nil {
-		if response.HTTPStatusCode != 400 {
-			handleError(err, "HTTPStatusCode:"+string(response.HTTPStatusCode))
+	i := 0
+	for !handleApiError(err) {
+		if i == 5 {
+			Error.Fatalf(err.Error())
 		}
+		response, err = call.Do()
+		i++
 	}
 	commentThreadsFromResponse(response, service, video, &comments)
 	nextPageToken := response.NextPageToken
@@ -40,13 +43,16 @@ func commentsByVideo(service *youtube.Service, video Video) []Comment {
 		Info.Printf("Video: [%v] Downloaded %.2f%%\n", video.Id, float64(len(comments))/float64(video.CommentCount)*100)
 		call := service.CommentThreads.List("snippet").VideoId(video.Id).MaxResults(100).PageToken(nextPageToken)
 		response, err := call.Do()
-		if response != nil {
-			if response.HTTPStatusCode != 400 {
-				handleError(err, "HTTPStatusCode:"+string(response.HTTPStatusCode))
+		i := 0
+		for !handleApiError(err) {
+			if i == 5 {
+				Error.Fatalf(err.Error())
 			}
-			commentThreadsFromResponse(response, service, video, &comments)
-			nextPageToken = response.NextPageToken
+			response, err = call.Do()
+			i++
 		}
+		commentThreadsFromResponse(response, service, video, &comments)
+		nextPageToken = response.NextPageToken
 	}
 	Info.Printf("Video: [%v] Downloaded 100%%. Total: %d\n", video.Id, len(comments))
 	return comments
@@ -58,29 +64,36 @@ func commentThreadsFromResponse(response *youtube.CommentThreadListResponse, ser
 		if item.Snippet.TotalReplyCount > 0 {
 			call := service.Comments.List("snippet").ParentId(item.Snippet.TopLevelComment.Id).MaxResults(100)
 			response, err := call.Do()
-			if response != nil {
-				if response.HTTPStatusCode != 400 {
-					handleError(err, "HTTPStatusCode:"+string(response.HTTPStatusCode))
+			i := 0
+			for !handleApiError(err) {
+				if i == 5 {
+					Error.Fatalf(err.Error())
 				}
-				for _, i := range response.Items {
-					*commentsPtr = append(*commentsPtr, comment(i, video.Id))
-				}
-				nextPageToken := response.NextPageToken
-				for len(nextPageToken) > 0 {
-					Info.Printf("Video: [%v] Downloaded %.2f%%\n", video.Id, float64(len(*commentsPtr))/float64(video.CommentCount)*100)
-					call := service.Comments.List("snippet").ParentId(item.Snippet.TopLevelComment.Id).MaxResults(100).PageToken(nextPageToken)
-					response, err := call.Do()
-					if response != nil {
-						if response.HTTPStatusCode != 400 {
-							handleError(err, "HTTPStatusCode:"+string(response.HTTPStatusCode))
-						}
-						nextPageToken = response.NextPageToken
-						for _, item := range response.Items {
-							*commentsPtr = append(*commentsPtr, comment(item, video.Id))
-						}
+				response, err = call.Do()
+				i++
+			}
+			for _, i := range response.Items {
+				*commentsPtr = append(*commentsPtr, comment(i, video.Id))
+			}
+			nextPageToken := response.NextPageToken
+			for len(nextPageToken) > 0 {
+				Info.Printf("Video: [%v] Downloaded %.2f%%\n", video.Id, float64(len(*commentsPtr))/float64(video.CommentCount)*100)
+				call := service.Comments.List("snippet").ParentId(item.Snippet.TopLevelComment.Id).MaxResults(100).PageToken(nextPageToken)
+				response, err := call.Do()
+				i := 0
+				for !handleApiError(err) {
+					if i == 5 {
+						Error.Fatalf(err.Error())
 					}
+					response, err = call.Do()
+					i++
+				}
+				nextPageToken = response.NextPageToken
+				for _, item := range response.Items {
+					*commentsPtr = append(*commentsPtr, comment(item, video.Id))
 				}
 			}
+
 		}
 	}
 }
@@ -92,8 +105,8 @@ func comment(item *youtube.Comment, videoId string) Comment {
 	comment.AuthorProfileImageUrl = item.Snippet.AuthorProfileImageUrl
 	comment.AuthorChannelUrl = item.Snippet.AuthorChannelUrl
 	comment.VideoId = videoId
-	comment.TextDisplay = strings.Replace(item.Snippet.TextDisplay, "\n","",-1)
-	comment.TextOriginal = strings.Replace(item.Snippet.TextOriginal, "\n","",-1)
+	comment.TextDisplay = strings.Replace(item.Snippet.TextDisplay, "\n", "", -1)
+	comment.TextOriginal = strings.Replace(item.Snippet.TextOriginal, "\n", "", -1)
 	comment.ParentId = item.Snippet.ParentId
 	comment.CanRate = item.Snippet.CanRate
 	comment.ViewerRating = item.Snippet.ViewerRating

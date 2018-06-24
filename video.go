@@ -71,10 +71,13 @@ func batchLoadVideosInfo(service *youtube.Service, videosMap *map[string]Video, 
 		}
 		call = call.Id(ids)
 		response, err := call.Do()
-		if response != nil {
-			if response.HTTPStatusCode != 400 {
-				handleError(err, "HTTPStatusCode:"+string(response.HTTPStatusCode))
+		i := 0
+		for !handleApiError(err) {
+			if i == 5 {
+				Error.Fatalf(err.Error())
 			}
+			response, err = call.Do()
+			i++
 		}
 		if len(keys) >= 50 {
 			keys = keys[50:]
@@ -92,8 +95,8 @@ func addVideosFromVideoListResponseToMap(result map[string]Video, response *yout
 		video := Video{}
 		video.Id = item.Id
 		video.Title = item.Snippet.Title
-		video.Description = strings.Replace(item.Snippet.Description, "\n","",-1)
-		video.ChannelId = strings.Replace(item.Snippet.ChannelId, "\n","",-1)
+		video.Description = strings.Replace(item.Snippet.Description, "\n", "", -1)
+		video.ChannelId = strings.Replace(item.Snippet.ChannelId, "\n", "", -1)
 		video.ViewCount = item.Statistics.ViewCount
 		video.LikeCount = item.Statistics.LikeCount
 		video.DislikeCount = item.Statistics.DislikeCount
@@ -122,17 +125,20 @@ func getVideosFromResponse(channelId string, service *youtube.Service, videosMap
 		MaxResults(50).
 		PageToken(pageToken)
 	response, err := call.Do()
-	if response != nil {
-		if response.HTTPStatusCode != 400 {
-			handleError(err, "HTTPStatusCode:"+string(response.HTTPStatusCode))
+	i := 0
+	for !handleApiError(err) {
+		if i == 5 {
+			Error.Fatalf(err.Error())
 		}
+		response, err = call.Do()
+		i++
 	}
 	for _, item := range response.Items {
 		if item.Id.Kind == "youtube#video" {
 			video := Video{}
 			video.Id = item.Id.VideoId
-			video.Title = strings.Replace(item.Snippet.Title, "\n","",-1)
-			video.Description = strings.Replace(item.Snippet.Description, "\n","",-1)
+			video.Title = strings.Replace(item.Snippet.Title, "\n", "", -1)
+			video.Description = strings.Replace(item.Snippet.Description, "\n", "", -1)
 			v := *videosMap
 			v[video.Id] = video
 		}
@@ -156,10 +162,13 @@ func getVideosById(videoIds []string, service *youtube.Service) map[string]Video
 	videosMap := make(map[string]Video)
 	call := service.Videos.List("snippet,contentDetails,statistics").Id(ids)
 	response, err := call.Do()
-	if response != nil {
-		if response.HTTPStatusCode != 400 {
-			handleError(err, "HTTPStatusCode:"+string(response.HTTPStatusCode))
+	i := 0
+	for !handleApiError(err) {
+		if i == 5 {
+			Error.Fatalf(err.Error())
 		}
+		response, err = call.Do()
+		i++
 	}
 	//TODO handle nil response
 	videosMap = addVideosFromVideoListResponseToMap(videosMap, response)
