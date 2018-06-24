@@ -22,7 +22,7 @@ func processVideos(service *youtube.Service){
 	//Make the API call to YouTube.
 	videosList := strings.Split(*videos, " ")
 	videosMap := getVideosById(videosList, service)
-	videos2csv(videosMap, "")
+	videos2csv(&videosMap, "")
 	wg := new(sync.WaitGroup)
 	for _, videoId := range videosList {
 		Info.Printf("Video: [%v] Processing video info\n", videoId)
@@ -47,8 +47,9 @@ func processChannels(service *youtube.Service) {
 		wg.Add(1)
 		go func(channelId string) {
 			defer wg.Done()
-			videos := getVideos(videosChannel, channelId, service)
-			videos2csv(videos, channelId)
+			channel := getChannel(channelId, videosChannel, service)
+			getVideosByChannel(&channel, service)
+			videos2csv(&channel.Videos, channelId)
 		}(channelId)
 		for video := range videosChannel {
 			if video.CommentCount > 0 {

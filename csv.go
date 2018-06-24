@@ -17,10 +17,10 @@ func mkDir(name string) {
 	handleError(err, "Can't create folder")
 }
 
-func videos2csv(videosMap map[string]Video, path string) {
-	videos := make([]Video, len(videosMap))
+func videos2csv(videosMap *map[string]Video, path string) {
+	videos := make([]Video, len(*videosMap))
 	idx := 0
-	for _, value := range videosMap {
+	for _, value := range *videosMap {
 		videos[idx] = value
 		idx++
 	}

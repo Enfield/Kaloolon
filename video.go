@@ -29,7 +29,7 @@ type Video struct {
 	CommentCount         uint64
 }
 
-func setVideosAdditionalParametersFromResponse(result *map[string]Video, response *youtube.VideoListResponse, videosChannel chan Video) {
+func setVideosAdditionalParametersFromResponse(result *map[string]Video, response *youtube.VideoListResponse) {
 	for _, item := range response.Items {
 		r := *result
 		video := r[item.Id]
@@ -51,12 +51,13 @@ func setVideosAdditionalParametersFromResponse(result *map[string]Video, respons
 		video.Caption = item.ContentDetails.Caption
 		video.Projection = item.ContentDetails.Projection
 		video.HasCustomThumbnail = item.ContentDetails.HasCustomThumbnail
+		video.Title = item.Snippet.Title
+		video.Description = item.Snippet.Description
 		r[video.Id] = video
-		videosChannel <- video
 	}
 }
 
-func batchLoadVideosInfo(service *youtube.Service, videosMap *map[string]Video, videosChannel chan Video) {
+func batchLoadVideosInfo(service *youtube.Service, videosMap *map[string]Video) {
 	keys := make([]string, 0, len(*videosMap))
 	for k := range *videosMap {
 		keys = append(keys, k)
@@ -84,10 +85,8 @@ func batchLoadVideosInfo(service *youtube.Service, videosMap *map[string]Video, 
 		} else {
 			keys = keys[len(keys):]
 		}
-		setVideosAdditionalParametersFromResponse(videosMap, response, videosChannel)
+		setVideosAdditionalParametersFromResponse(videosMap, response)
 	}
-	//all chanel videos resolved, close channel
-	close(videosChannel)
 }
 
 func addVideosFromVideoListResponseToMap(result map[string]Video, response *youtube.VideoListResponse) map[string]Video {
@@ -119,42 +118,9 @@ func addVideosFromVideoListResponseToMap(result map[string]Video, response *yout
 	return result
 }
 
-func getVideosFromResponse(channelId string, service *youtube.Service, videosMap *map[string]Video, pageToken string) string {
-	call := service.Search.List("snippet").
-		ChannelId(channelId).
-		MaxResults(50).
-		PageToken(pageToken)
-	response, err := call.Do()
-	i := 0
-	for !handleApiError(err) {
-		if i == 5 {
-			Error.Fatalf(err.Error())
-		}
-		response, err = call.Do()
-		i++
-	}
-	for _, item := range response.Items {
-		if item.Id.Kind == "youtube#video" {
-			video := Video{}
-			video.Id = item.Id.VideoId
-			video.Title = strings.Replace(item.Snippet.Title, "\n", "", -1)
-			video.Description = strings.Replace(item.Snippet.Description, "\n", "", -1)
-			v := *videosMap
-			v[video.Id] = video
-		}
-	}
-	return response.NextPageToken
-}
-
-func getVideos(videosChannel chan Video, channelId string, service *youtube.Service) map[string]Video {
-	Info.Printf("Channel: [%v] Processing videos\n", channelId)
-	videosMap := make(map[string]Video)
-	pageToken := getVideosFromResponse(channelId, service, &videosMap, "")
-	for len(pageToken) > 0 {
-		pageToken = getVideosFromResponse(channelId, service, &videosMap, pageToken)
-	}
-	batchLoadVideosInfo(service, &videosMap, videosChannel)
-	return videosMap
+func getVideosByChannel(channel *Channel, service *youtube.Service) {
+	Info.Printf("Channel: [%v] Processing videos\n", channel.Id)
+	batchLoadVideosInfo(service, &channel.Videos)
 }
 
 func getVideosById(videoIds []string, service *youtube.Service) map[string]Video {
@@ -170,7 +136,6 @@ func getVideosById(videoIds []string, service *youtube.Service) map[string]Video
 		response, err = call.Do()
 		i++
 	}
-	//TODO handle nil response
 	videosMap = addVideosFromVideoListResponseToMap(videosMap, response)
 	return videosMap
 }
