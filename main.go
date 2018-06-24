@@ -44,19 +44,20 @@ func processChannels(service *youtube.Service) {
 	wg := new(sync.WaitGroup)
 	for _, channelId := range channelsList {
 		videosChannel := make(chan Video)
+		var channel Channel
 		wg.Add(1)
 		go func(channelId string) {
 			defer wg.Done()
-			channel := getChannel(channelId, videosChannel, service)
-			getVideosByChannel(&channel, service)
-			videos2csv(&channel.Videos, channelId)
+			channel = getChannel(channelId, service)
+			getVideosByChannel(&channel, videosChannel, service)
+			videos2csv(&channel.Videos, channel.Title+"_"+channel.Id)
 		}(channelId)
 		for video := range videosChannel {
 			if video.CommentCount > 0 {
 				wg.Add(1)
 				go func(video Video) {
 					defer wg.Done()
-					comments2csv(commentsByVideo(service, video), channelId)
+					comments2csv(commentsByVideo(service, video), channel.Title+"_"+channel.Id)
 				}(video)
 			}
 		}

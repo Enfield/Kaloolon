@@ -29,7 +29,7 @@ type Video struct {
 	CommentCount         uint64
 }
 
-func setVideosAdditionalParametersFromResponse(result *map[string]Video, response *youtube.VideoListResponse) {
+func setVideosAdditionalParametersFromResponse(result *map[string]Video, videosChannel chan Video, response *youtube.VideoListResponse) {
 	for _, item := range response.Items {
 		r := *result
 		video := r[item.Id]
@@ -51,13 +51,15 @@ func setVideosAdditionalParametersFromResponse(result *map[string]Video, respons
 		video.Caption = item.ContentDetails.Caption
 		video.Projection = item.ContentDetails.Projection
 		video.HasCustomThumbnail = item.ContentDetails.HasCustomThumbnail
-		video.Title = item.Snippet.Title
-		video.Description = item.Snippet.Description
+		video.Description = strings.Replace(item.Snippet.Description, "\n", " ", -1)
+		video.Title = strings.Replace(item.Snippet.Title, "\n", "", -1)
 		r[video.Id] = video
+		videosChannel <- video
 	}
+
 }
 
-func batchLoadVideosInfo(service *youtube.Service, videosMap *map[string]Video) {
+func batchLoadVideosInfo(service *youtube.Service, videosChannel chan Video, videosMap *map[string]Video) {
 	keys := make([]string, 0, len(*videosMap))
 	for k := range *videosMap {
 		keys = append(keys, k)
@@ -85,8 +87,9 @@ func batchLoadVideosInfo(service *youtube.Service, videosMap *map[string]Video) 
 		} else {
 			keys = keys[len(keys):]
 		}
-		setVideosAdditionalParametersFromResponse(videosMap, response)
+		setVideosAdditionalParametersFromResponse(videosMap, videosChannel, response)
 	}
+	close(videosChannel)
 }
 
 func addVideosFromVideoListResponseToMap(result map[string]Video, response *youtube.VideoListResponse) map[string]Video {
@@ -118,9 +121,9 @@ func addVideosFromVideoListResponseToMap(result map[string]Video, response *yout
 	return result
 }
 
-func getVideosByChannel(channel *Channel, service *youtube.Service) {
+func getVideosByChannel(channel *Channel, videosChannel chan Video, service *youtube.Service) {
 	Info.Printf("Channel: [%v] Processing videos\n", channel.Id)
-	batchLoadVideosInfo(service, &channel.Videos)
+	batchLoadVideosInfo(service, videosChannel, &channel.Videos)
 }
 
 func getVideosById(videoIds []string, service *youtube.Service) map[string]Video {

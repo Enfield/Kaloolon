@@ -2,11 +2,11 @@ package main
 
 import "google.golang.org/api/youtube/v3"
 
-func getPlaylistVideos(playlistId string, videosChannel chan Video, service *youtube.Service, videos *map[string]Video) {
+func getPlaylistVideos(playlistId string, service *youtube.Service, videos *map[string]Video) {
 	v := *videos
-	Info.Printf("Playlist: [%v] Fetching videos\n", playlistId)
+	Info.Printf("Playlist:[%v] Fetching videos info\n", playlistId)
 	call := service.PlaylistItems.List("contentDetails").
-		Id(playlistId).MaxResults(50)
+		PlaylistId(playlistId).MaxResults(50)
 	response, err := call.Do()
 	i := 0
 	for !handleApiError(err) {
@@ -19,7 +19,6 @@ func getPlaylistVideos(playlistId string, videosChannel chan Video, service *you
 	for _, p := range response.Items {
 		video := Video{}
 		video.Id = p.ContentDetails.VideoId
-		videosChannel <- video
 		v[video.Id] = video
 	}
 	pageToken := response.NextPageToken
@@ -38,11 +37,9 @@ func getPlaylistVideos(playlistId string, videosChannel chan Video, service *you
 		for _, p := range response.Items {
 			video := Video{}
 			video.Id = p.ContentDetails.VideoId
-			videosChannel <- video
 			v[video.Id] = video
 		}
 		pageToken = response.NextPageToken
 	}
-	close(videosChannel)
 }
 

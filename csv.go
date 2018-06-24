@@ -59,7 +59,7 @@ func comments2csv(comments []Comment, path string) {
 			mkDir(commentsFolderName)
 			filePath = commentsFolderName + string(os.PathSeparator) + comments[0].VideoId + ".csv"
 		}
-		Info.Printf("Video: [%v] Saving comments to file [%v]\n", comments[0].VideoId, filePath)
+		Info.Printf("Video:   [%v] Saving comments to file [%v]\n", comments[0].VideoId, filePath)
 		buff := &bytes.Buffer{}
 		w := struct2csv.NewWriter(buff)
 		err := w.WriteStructs(comments)

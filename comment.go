@@ -26,7 +26,7 @@ type Comment struct {
 
 func commentsByVideo(service *youtube.Service, video Video) []Comment {
 	comments := make([]Comment, 0)
-	Info.Printf("Video: [%v] Starting processing comments\n", video.Id)
+	Info.Printf("Video:   [%v] Starting processing comments\n", video.Id)
 	call := service.CommentThreads.List("snippet").VideoId(video.Id).MaxResults(100)
 	response, err := call.Do()
 	i := 0
@@ -54,7 +54,7 @@ func commentsByVideo(service *youtube.Service, video Video) []Comment {
 		commentThreadsFromResponse(response, service, video, &comments)
 		nextPageToken = response.NextPageToken
 	}
-	Info.Printf("Video: [%v] Downloaded 100%%. Total: %d\n", video.Id, len(comments))
+	Info.Printf("Video:   [%v] Downloaded 100%% Total: %d\n", video.Id, len(comments))
 	return comments
 }
 

@@ -9,7 +9,7 @@ type Channel struct {
 	Videos      map[string]Video
 }
 
-func getChannel(channelId string, videosChannel chan Video, service *youtube.Service) Channel {
+func getChannel(channelId string, service *youtube.Service) Channel {
 	Info.Printf("Channel: [%v] Fetching playlists\n", channelId)
 	call := service.Channels.List("snippet,contentDetails").
 		Id(channelId)
@@ -30,7 +30,7 @@ func getChannel(channelId string, videosChannel chan Video, service *youtube.Ser
 		channel.Title = c.Snippet.Title
 		videos := make(map[string]Video)
 		Info.Printf("Channel: [%v] Playlist [%v] found", channel.Id, c.ContentDetails.RelatedPlaylists.Uploads)
-		getPlaylistVideos(c.ContentDetails.RelatedPlaylists.Uploads, videosChannel, service, &videos)
+		getPlaylistVideos(c.ContentDetails.RelatedPlaylists.Uploads, service, &videos)
 		channel.Videos = videos
 		return channel
 	}
