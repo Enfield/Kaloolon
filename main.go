@@ -66,7 +66,6 @@ func processChannels(service *youtube.Service) {
 						<-semaphore
 						wg.Done()
 					}()
-					defer wg.Done()
 					comments2csv(commentsByVideo(service, video), channel.Title+"_"+channel.Id)
 				}(video)
 			}
