@@ -41,13 +41,18 @@ func processChannels(service *youtube.Service) {
 	Info.Println("Start processing channels")
 	//Make the API call to YouTube.
 	channelsList := strings.Split(*channels, " ")
+	semaphore := make(chan struct{}, 200)
 	wg := new(sync.WaitGroup)
 	for _, channelId := range channelsList {
 		videosChannel := make(chan Video)
 		var channel Channel
 		wg.Add(1)
 		go func(channelId string) {
-			defer wg.Done()
+			semaphore <- struct{}{}
+			defer func() {
+				<-semaphore
+				wg.Done()
+			}()
 			channel = getChannel(channelId, service)
 			getVideosByChannel(&channel, videosChannel, service)
 			videos2csv(&channel.Videos, channel.Title+"_"+channel.Id)
@@ -56,6 +61,11 @@ func processChannels(service *youtube.Service) {
 			if video.CommentCount > 0 {
 				wg.Add(1)
 				go func(video Video) {
+					semaphore <- struct{}{}
+					defer func() {
+						<-semaphore
+						wg.Done()
+					}()
 					defer wg.Done()
 					comments2csv(commentsByVideo(service, video), channel.Title+"_"+channel.Id)
 				}(video)
