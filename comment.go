@@ -40,7 +40,7 @@ func commentsByVideo(service *youtube.Service, video Video) []Comment {
 	commentThreadsFromResponse(response, service, video, &comments)
 	nextPageToken := response.NextPageToken
 	for len(nextPageToken) > 0 {
-		Info.Printf("Video: [%v] Downloaded %.2f%%\n", video.Id, float64(len(comments))/float64(video.CommentCount)*100)
+		Info.Printf("Video:   [%v] Downloaded %.2f%%\n", video.Id, float64(len(comments))/float64(video.CommentCount)*100)
 		call := service.CommentThreads.List("snippet").VideoId(video.Id).MaxResults(100).PageToken(nextPageToken)
 		response, err := call.Do()
 		i := 0
@@ -77,7 +77,7 @@ func commentThreadsFromResponse(response *youtube.CommentThreadListResponse, ser
 			}
 			nextPageToken := response.NextPageToken
 			for len(nextPageToken) > 0 {
-				Info.Printf("Video: [%v] Downloaded %.2f%%\n", video.Id, float64(len(*commentsPtr))/float64(video.CommentCount)*100)
+				Info.Printf("Video:   [%v] Downloaded %.2f%%\n", video.Id, float64(len(*commentsPtr))/float64(video.CommentCount)*100)
 				call := service.Comments.List("snippet").ParentId(item.Snippet.TopLevelComment.Id).MaxResults(100).PageToken(nextPageToken)
 				response, err := call.Do()
 				i := 0
