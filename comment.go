@@ -60,7 +60,7 @@ func commentsByVideo(service *youtube.Service, video Video) []Comment {
 
 func commentThreadsFromResponse(response *youtube.CommentThreadListResponse, service *youtube.Service, video Video, commentsPtr *[]Comment) {
 	for _, item := range response.Items {
-		*commentsPtr = append(*commentsPtr, comment(item.Snippet.TopLevelComment, video.Id))
+		*commentsPtr = append(*commentsPtr, comment(item.Snippet.TopLevelComment, video.Id, video.ChannelId))
 		if item.Snippet.TotalReplyCount > 0 {
 			call := service.Comments.List("snippet").ParentId(item.Snippet.TopLevelComment.Id).MaxResults(100)
 			response, err := call.Do()
@@ -73,7 +73,7 @@ func commentThreadsFromResponse(response *youtube.CommentThreadListResponse, ser
 				i++
 			}
 			for _, i := range response.Items {
-				*commentsPtr = append(*commentsPtr, comment(i, video.Id))
+				*commentsPtr = append(*commentsPtr, comment(i, video.Id, video.ChannelId))
 			}
 			nextPageToken := response.NextPageToken
 			for len(nextPageToken) > 0 {
@@ -90,7 +90,7 @@ func commentThreadsFromResponse(response *youtube.CommentThreadListResponse, ser
 				}
 				nextPageToken = response.NextPageToken
 				for _, item := range response.Items {
-					*commentsPtr = append(*commentsPtr, comment(item, video.Id))
+					*commentsPtr = append(*commentsPtr, comment(item, video.Id, video.ChannelId))
 				}
 			}
 
@@ -98,13 +98,14 @@ func commentThreadsFromResponse(response *youtube.CommentThreadListResponse, ser
 	}
 }
 
-func comment(item *youtube.Comment, videoId string) Comment {
+func comment(item *youtube.Comment, videoId string, channelId string) Comment {
 	comment := Comment{}
 	comment.Id = item.Id
 	comment.AuthorDisplayName = item.Snippet.AuthorDisplayName
 	comment.AuthorProfileImageUrl = item.Snippet.AuthorProfileImageUrl
 	comment.AuthorChannelUrl = item.Snippet.AuthorChannelUrl
 	comment.VideoId = videoId
+	comment.ChannelId = channelId
 	comment.TextDisplay = strings.Replace(item.Snippet.TextDisplay, "\n", "", -1)
 	comment.TextOriginal = strings.Replace(item.Snippet.TextOriginal, "\n", "", -1)
 	comment.ParentId = item.Snippet.ParentId

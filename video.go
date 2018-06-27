@@ -29,11 +29,11 @@ type Video struct {
 	CommentCount         uint64
 }
 
-func setVideosAdditionalParametersFromResponse(result *map[string]Video, videosChannel chan Video, response *youtube.VideoListResponse) {
+func setVideosAdditionalParametersFromResponse(result *map[string]Video, videosChannel chan Video, response *youtube.VideoListResponse, channelId string) {
 	for _, item := range response.Items {
 		r := *result
 		video := r[item.Id]
-		video.ChannelId = item.Snippet.ChannelId
+		video.ChannelId = channelId
 		video.ViewCount = item.Statistics.ViewCount
 		video.LikeCount = item.Statistics.LikeCount
 		video.DislikeCount = item.Statistics.DislikeCount
@@ -59,7 +59,7 @@ func setVideosAdditionalParametersFromResponse(result *map[string]Video, videosC
 
 }
 
-func batchLoadVideosInfo(service *youtube.Service, videosChannel chan Video, videosMap *map[string]Video) {
+func batchLoadVideosInfo(service *youtube.Service, videosChannel chan Video, videosMap *map[string]Video, channelId string) {
 	keys := make([]string, 0, len(*videosMap))
 	for k := range *videosMap {
 		keys = append(keys, k)
@@ -87,7 +87,7 @@ func batchLoadVideosInfo(service *youtube.Service, videosChannel chan Video, vid
 		} else {
 			keys = keys[len(keys):]
 		}
-		setVideosAdditionalParametersFromResponse(videosMap, videosChannel, response)
+		setVideosAdditionalParametersFromResponse(videosMap, videosChannel, response, channelId)
 	}
 	close(videosChannel)
 }
@@ -123,7 +123,7 @@ func addVideosFromVideoListResponseToMap(result map[string]Video, response *yout
 
 func getVideosByChannel(channel *Channel, videosChannel chan Video, service *youtube.Service) {
 	Info.Printf("Channel: [%v] Processing videos\n", channel.Id)
-	batchLoadVideosInfo(service, videosChannel, &channel.Videos)
+	batchLoadVideosInfo(service, videosChannel, &channel.Videos, channel.Id)
 }
 
 func getVideosById(videoIds []string, service *youtube.Service) map[string]Video {
