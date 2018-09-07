@@ -55,7 +55,7 @@ func processChannels(service *youtube.Service) {
 			}()
 			channel = getChannel(channelId, service)
 			getVideosByChannel(&channel, videosChannel, service)
-			videos2csv(&channel.Videos, channel.Title+"_"+channel.Id)
+			//videos2csv(&channel.Videos, channel.Title+"_"+channel.Id)
 		}(channelId)
 		for video := range videosChannel {
 			if video.CommentCount > 0 {
