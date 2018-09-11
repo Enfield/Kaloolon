@@ -2,7 +2,7 @@ package main
 
 import (
 	"google.golang.org/api/youtube/v3"
-	"strings"
+	"cloud.google.com/go/bigquery"
 )
 
 type Comment struct {
@@ -13,15 +13,35 @@ type Comment struct {
 	AuthorChannelId       string
 	ChannelId             string
 	VideoId               string
-	TextDisplay           string
-	TextOriginal          string
-	ParentId              string
-	CanRate               bool
-	ViewerRating          string
-	LikeCount             int64
-	ModerationStatus      string
-	PublishedAt           string
-	UpdatedAt             string
+	//TextDisplay           string
+	//TextOriginal          string
+	ParentId         string
+	CanRate          bool
+	ViewerRating     string
+	LikeCount        int64
+	ModerationStatus string
+	PublishedAt      string
+	UpdatedAt        string
+}
+
+// Save implements the ValueSaver interface.
+func (i *Comment) Save() (map[string]bigquery.Value, string, error) {
+	return map[string]bigquery.Value{
+		"Id":                    i.Id,
+		"AuthorDisplayName":     i.AuthorDisplayName,
+		"AuthorProfileImageUrl": i.AuthorProfileImageUrl,
+		"AuthorChannelUrl":      i.AuthorChannelUrl,
+		"AuthorChannelId":       i.AuthorChannelId,
+		"ChannelId":             i.ChannelId,
+		"VideoId":               i.VideoId,
+		"ParentId":              i.ParentId,
+		"CanRate":               i.CanRate,
+		"ViewerRating":          i.ViewerRating,
+		"LikeCount":             i.LikeCount,
+		"ModerationStatus":      i.ModerationStatus,
+		"PublishedAt":           i.PublishedAt,
+		"UpdatedAt":             i.UpdatedAt,
+	}, i.Id, nil
 }
 
 func commentsByVideo(service *youtube.Service, video Video) []Comment {
@@ -106,8 +126,8 @@ func comment(item *youtube.Comment, videoId string, channelId string) Comment {
 	comment.AuthorChannelUrl = item.Snippet.AuthorChannelUrl
 	comment.VideoId = videoId
 	comment.ChannelId = channelId
-	comment.TextDisplay = strings.Replace(item.Snippet.TextDisplay, "\n", "", -1)
-	comment.TextOriginal = strings.Replace(item.Snippet.TextOriginal, "\n", "", -1)
+	//comment.TextDisplay = strings.Replace(item.Snippet.TextDisplay, "\n", "", -1)
+	//comment.TextOriginal = strings.Replace(item.Snippet.TextOriginal, "\n", "", -1)
 	comment.ParentId = item.Snippet.ParentId
 	comment.CanRate = item.Snippet.CanRate
 	comment.ViewerRating = item.Snippet.ViewerRating

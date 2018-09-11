@@ -1,12 +1,26 @@
 package main
 
-import "google.golang.org/api/youtube/v3"
+import (
+	"google.golang.org/api/youtube/v3"
+	"cloud.google.com/go/bigquery"
+)
 
 type Channel struct {
 	Id          string
 	Title       string
 	Description string
+	Thumbnail   string
 	Videos      map[string]Video
+}
+
+// Save implements the ValueSaver interface.
+func (i *Channel) Save() (map[string]bigquery.Value, string, error) {
+	return map[string]bigquery.Value{
+		"Id": i.Id,
+		"Title": i.Title,
+		"Description": i.Description,
+		"Thumbnail": i.Thumbnail,
+	}, "", nil
 }
 
 func getChannel(channelId string, service *youtube.Service) Channel {
@@ -28,6 +42,7 @@ func getChannel(channelId string, service *youtube.Service) Channel {
 		channel.Id = c.Id
 		channel.Description = c.Snippet.Description
 		channel.Title = c.Snippet.Title
+		channel.Thumbnail = c.Snippet.Thumbnails.Default.Url
 		videos := make(map[string]Video)
 		Info.Printf("Channel: [%v] Playlist [%v] found", channel.Id, c.ContentDetails.RelatedPlaylists.Uploads)
 		getPlaylistVideos(c.ContentDetails.RelatedPlaylists.Uploads, service, &videos)

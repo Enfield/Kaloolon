@@ -1,18 +1,17 @@
 package main
 
 import (
-	"bytes"
-	"github.com/mohae/struct2csv"
-	"io/ioutil"
+	"cloud.google.com/go/bigquery"
+	"context"
 )
 
-func loadCommentsToBigQuery(comments []Comment) {
-	var filePath string
+func loadCommentsToBigQuery(tableName string, comments []Comment, client *bigquery.Client, ctx context.Context) {
 	if len(comments) > 0 {
-		Info.Printf("Video:   [%v] Saving comments to biqQuery\n", comments[0].VideoId)
-		if err != nil {
-			handleError(err, "Can't save comments to csv file")
+		Info.Printf("Channel: [%v] Video: [%v] Saving data to BigQuery\n", tableName, comments[0].VideoId)
+		u := client.Dataset("kolomo").Table("comments").Uploader()
+		u.TableTemplateSuffix = "_" + tableName
+		if err := u.Put(ctx, comments); err != nil {
+			handleError(err, "Can't save comments to BigQuery")
 		}
-		ioutil.WriteFile(filePath, buff.Bytes(), 0644)
 	}
 }
