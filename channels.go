@@ -20,7 +20,7 @@ func (i *Channel) Save() (map[string]bigquery.Value, string, error) {
 		"Title": i.Title,
 		"Description": i.Description,
 		"Thumbnail": i.Thumbnail,
-	}, "", nil
+	}, i.Id, nil
 }
 
 func getChannel(channelId string, service *youtube.Service) Channel {
