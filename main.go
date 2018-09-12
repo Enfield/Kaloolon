@@ -20,12 +20,12 @@ var (
 	logFile      = flag.String("log-file", "", "Logfile name")
 )
 
-func processVideos(service *youtube.Service){
+func processVideos(service *youtube.Service) {
 	Info.Println("Start processing videos")
 	//Make the API call to YouTube.
 	videosList := strings.Split(*videos, " ")
 	videosMap := getVideosById(videosList, service)
-	videos2csv(&videosMap, "")
+	//videos2csv(&videosMap, "")
 	wg := new(sync.WaitGroup)
 	for _, videoId := range videosList {
 		Info.Printf("Video: [%v] Processing video info\n", videoId)
@@ -33,7 +33,7 @@ func processVideos(service *youtube.Service){
 			wg.Add(1)
 			go func(videoId string) {
 				defer wg.Done()
-				comments2csv(commentsByVideo(service, videosMap[videoId]), "")
+				//comments2csv(commentsByVideo(service, videosMap[videoId]), "")
 			}(videoId)
 		}
 	}
@@ -44,7 +44,7 @@ func processChannels(service *youtube.Service, bigQueryClient *bigquery.Client, 
 	Info.Println("Start processing channels")
 	//Make the API call to YouTube.
 	channelsList := strings.Split(*channels, " ")
-	semaphore := make(chan struct{}, 200)
+	semaphore := make(chan struct{}, 250)
 	wg := new(sync.WaitGroup)
 	for _, channelId := range channelsList {
 		videosChannel := make(chan Video)
@@ -57,8 +57,9 @@ func processChannels(service *youtube.Service, bigQueryClient *bigquery.Client, 
 				wg.Done()
 			}()
 			channel = getChannel(channelId, service)
+			loadChannelsToBigQuery(&channel, bigQueryClient, ctx)
 			getVideosByChannel(&channel, videosChannel, service)
-			//videos2csv(&channel.Videos, channel.Title+"_"+channel.Id)
+			loadVideosToBigQuery(channel.Id, &channel.Videos, bigQueryClient, ctx)
 		}(channelId)
 		for video := range videosChannel {
 			if video.CommentCount > 0 {
@@ -69,8 +70,9 @@ func processChannels(service *youtube.Service, bigQueryClient *bigquery.Client, 
 						<-semaphore
 						wg.Done()
 					}()
-					loadCommentsToBigQuery(channel.Id, commentsByVideo(service, video), bigQueryClient, ctx)
-					//comments2csv(commentsByVideo(service, video), channel.Title+"_"+channel.Id)
+					comments := commentsByVideo(service, video)
+					wg.Add(1)
+					loadCommentsToBigQuery(channel.Id, &comments, bigQueryClient, ctx)
 				}(video)
 			}
 		}
@@ -117,4 +119,3 @@ func main() {
 		Error.Println("Please provide channel or video to process.")
 	}
 }
-//Kaloolon

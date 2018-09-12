@@ -16,10 +16,10 @@ type Channel struct {
 // Save implements the ValueSaver interface.
 func (i *Channel) Save() (map[string]bigquery.Value, string, error) {
 	return map[string]bigquery.Value{
-		"Id": i.Id,
-		"Title": i.Title,
+		"Id":          i.Id,
+		"Title":       i.Title,
 		"Description": i.Description,
-		"Thumbnail": i.Thumbnail,
+		"Thumbnail":   i.Thumbnail,
 	}, i.Id, nil
 }
 

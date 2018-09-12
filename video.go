@@ -3,6 +3,8 @@ package main
 import (
 	"google.golang.org/api/youtube/v3"
 	"strings"
+	"cloud.google.com/go/bigquery"
+	"strconv"
 )
 
 type Video struct {
@@ -11,7 +13,6 @@ type Video struct {
 	CategoryId           string
 	PublishedAt          string
 	Title                string
-	Description          string
 	LiveBroadcastContent string
 	DefaultLanguage      string
 	DefaultAudioLanguage string
@@ -27,6 +28,33 @@ type Video struct {
 	DislikeCount         uint64
 	FavoriteCount        uint64
 	CommentCount         uint64
+}
+
+// Save implements the ValueSaver interface.
+func (i Video) Save() (map[string]bigquery.Value, string, error) {
+	return map[string]bigquery.Value{
+		"Id":                   i.Id,
+		"ChannelId":            i.ChannelId,
+		"CategoryId":           i.CategoryId,
+		"PublishedAt":          i.PublishedAt,
+		"Title":                i.Title,
+		"LiveBroadcastContent": i.LiveBroadcastContent,
+		"DefaultLanguage":      i.DefaultLanguage,
+		"DefaultAudioLanguage": i.DefaultAudioLanguage,
+		"Duration":             i.Duration,
+		"Dimension":            i.Dimension,
+		"Definition":           i.Definition,
+		"Caption":              i.Caption,
+		"LicensedContent":      i.LicensedContent,
+		"Projection":           i.Projection,
+		"HasCustomThumbnail":   i.HasCustomThumbnail,
+		//BigQuery not support uint64
+		"ViewCount":            strconv.FormatUint(i.ViewCount, 10),
+		"LikeCount":            strconv.FormatUint(i.LikeCount, 10),
+		"DislikeCount":         strconv.FormatUint(i.DislikeCount, 10),
+		"FavoriteCount":        strconv.FormatUint(i.FavoriteCount, 10),
+		"CommentCount":         strconv.FormatUint(i.CommentCount, 10),
+	}, i.Id, nil
 }
 
 func setVideosAdditionalParametersFromResponse(result *map[string]Video, videosChannel chan Video, response *youtube.VideoListResponse, channelId string) {
@@ -51,8 +79,7 @@ func setVideosAdditionalParametersFromResponse(result *map[string]Video, videosC
 		video.Caption = item.ContentDetails.Caption
 		video.Projection = item.ContentDetails.Projection
 		video.HasCustomThumbnail = item.ContentDetails.HasCustomThumbnail
-		video.Description = strings.Replace(item.Snippet.Description, "\n", " ", -1)
-		video.Title = strings.Replace(item.Snippet.Title, "\n", "", -1)
+		video.Title = item.Snippet.Title
 		r[video.Id] = video
 		videosChannel <- video
 	}
@@ -97,8 +124,7 @@ func addVideosFromVideoListResponseToMap(result map[string]Video, response *yout
 		video := Video{}
 		video.Id = item.Id
 		video.Title = item.Snippet.Title
-		video.Description = strings.Replace(item.Snippet.Description, "\n", "", -1)
-		video.ChannelId = strings.Replace(item.Snippet.ChannelId, "\n", "", -1)
+		video.ChannelId = item.Snippet.ChannelId
 		video.ViewCount = item.Statistics.ViewCount
 		video.LikeCount = item.Statistics.LikeCount
 		video.DislikeCount = item.Statistics.DislikeCount
