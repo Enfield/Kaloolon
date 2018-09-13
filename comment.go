@@ -3,6 +3,8 @@ package main
 import (
 	"google.golang.org/api/youtube/v3"
 	"cloud.google.com/go/bigquery"
+	"golang.org/x/net/context"
+	"sync/atomic"
 )
 
 type Comment struct {
@@ -42,8 +44,8 @@ func (i Comment) Save() (map[string]bigquery.Value, string, error) {
 	}, i.Id, nil
 }
 
-func commentsByVideo(service *youtube.Service, video Video) []Comment {
-	comments := make([]Comment, 0)
+func getCommentsByVideo(ctx context.Context, service *youtube.Service, video Video, client *bigquery.Client) {
+	var commentCounter uint64 = 0
 	Info.Printf("Video:   [%v] Starting processing comments\n", video.Id)
 	call := service.CommentThreads.List("snippet").VideoId(video.Id).MaxResults(100)
 	response, err := call.Do()
@@ -55,10 +57,11 @@ func commentsByVideo(service *youtube.Service, video Video) []Comment {
 		response, err = call.Do()
 		i++
 	}
-	commentThreadsFromResponse(response, service, video, &comments)
+	comments := commentThreadsFromResponse(response, service, video, &commentCounter)
+	go loadCommentsToBigQuery(ctx, video.ChannelId, video.Id, comments, client)
 	nextPageToken := response.NextPageToken
 	for len(nextPageToken) > 0 {
-		Info.Printf("Video:   [%v] Downloaded %.2f%%\n", video.Id, float64(len(comments))/float64(video.CommentCount)*100)
+		Info.Printf("Video:   [%v] Downloaded %.2f%%\n", video.Id, float64(atomic.LoadUint64(&commentCounter))/float64(video.CommentCount)*100)
 		call := service.CommentThreads.List("snippet").VideoId(video.Id).MaxResults(100).PageToken(nextPageToken)
 		response, err := call.Do()
 		i := 0
@@ -69,16 +72,18 @@ func commentsByVideo(service *youtube.Service, video Video) []Comment {
 			response, err = call.Do()
 			i++
 		}
-		commentThreadsFromResponse(response, service, video, &comments)
+		comments := commentThreadsFromResponse(response, service, video, &commentCounter)
+		go loadCommentsToBigQuery(ctx, video.ChannelId, video.Id, comments, client)
 		nextPageToken = response.NextPageToken
 	}
-	Info.Printf("Video:   [%v] Downloaded 100%% Total: %d\n", video.Id, len(comments))
-	return comments
+	Info.Printf("Video:   [%v] Downloaded 100%% Total: %d\n", video.Id, atomic.LoadUint64(&commentCounter))
 }
 
-func commentThreadsFromResponse(response *youtube.CommentThreadListResponse, service *youtube.Service, video Video, commentsPtr *[]Comment) {
+func commentThreadsFromResponse(response *youtube.CommentThreadListResponse, service *youtube.Service, video Video, commentCounter *uint64) [] Comment {
+	comments := make([]Comment, 0)
 	for _, item := range response.Items {
-		*commentsPtr = append(*commentsPtr, comment(item.Snippet.TopLevelComment, video.Id, video.ChannelId))
+		atomic.AddUint64(commentCounter, 1)
+		comments = append(comments, comment(item.Snippet.TopLevelComment, video.Id, video.ChannelId))
 		if item.Snippet.TotalReplyCount > 0 {
 			call := service.Comments.List("snippet").ParentId(item.Snippet.TopLevelComment.Id).MaxResults(100)
 			response, err := call.Do()
@@ -91,11 +96,12 @@ func commentThreadsFromResponse(response *youtube.CommentThreadListResponse, ser
 				i++
 			}
 			for _, i := range response.Items {
-				*commentsPtr = append(*commentsPtr, comment(i, video.Id, video.ChannelId))
+				atomic.AddUint64(commentCounter, 1)
+				comments = append(comments, comment(i, video.Id, video.ChannelId))
 			}
 			nextPageToken := response.NextPageToken
 			for len(nextPageToken) > 0 {
-				Info.Printf("Video:   [%v] Downloaded %.2f%%\n", video.Id, float64(len(*commentsPtr))/float64(video.CommentCount)*100)
+				Info.Printf("Video:   [%v] Downloaded %.2f%%\n", video.Id, float64(atomic.LoadUint64(commentCounter))/float64(video.CommentCount)*100)
 				call := service.Comments.List("snippet").ParentId(item.Snippet.TopLevelComment.Id).MaxResults(100).PageToken(nextPageToken)
 				response, err := call.Do()
 				i := 0
@@ -108,12 +114,13 @@ func commentThreadsFromResponse(response *youtube.CommentThreadListResponse, ser
 				}
 				nextPageToken = response.NextPageToken
 				for _, item := range response.Items {
-					*commentsPtr = append(*commentsPtr, comment(item, video.Id, video.ChannelId))
+					atomic.AddUint64(commentCounter, 1)
+					comments = append(comments, comment(item, video.Id, video.ChannelId))
 				}
 			}
-
 		}
 	}
+	return comments
 }
 
 func comment(item *youtube.Comment, videoId string, channelId string) Comment {

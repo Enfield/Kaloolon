@@ -33,7 +33,7 @@ func processVideos(service *youtube.Service) {
 			wg.Add(1)
 			go func(videoId string) {
 				defer wg.Done()
-				//comments2csv(commentsByVideo(service, videosMap[videoId]), "")
+				//comments2csv(getCommentsByVideo(service, videosMap[videoId]), "")
 			}(videoId)
 		}
 	}
@@ -57,9 +57,8 @@ func processChannels(service *youtube.Service, bigQueryClient *bigquery.Client, 
 				wg.Done()
 			}()
 			channel = getChannel(channelId, service)
-			loadChannelsToBigQuery(&channel, bigQueryClient, ctx)
-			getVideosByChannel(&channel, videosChannel, service)
-			loadVideosToBigQuery(channel.Id, &channel.Videos, bigQueryClient, ctx)
+			go loadChannelsToBigQuery(ctx, &channel, bigQueryClient)
+			getVideosByChannel(ctx, &channel, videosChannel, service, bigQueryClient)
 		}(channelId)
 		for video := range videosChannel {
 			if video.CommentCount > 0 {
@@ -70,9 +69,7 @@ func processChannels(service *youtube.Service, bigQueryClient *bigquery.Client, 
 						<-semaphore
 						wg.Done()
 					}()
-					comments := commentsByVideo(service, video)
-					wg.Add(1)
-					loadCommentsToBigQuery(channel.Id, &comments, bigQueryClient, ctx)
+					getCommentsByVideo(ctx, service, video, bigQueryClient)
 				}(video)
 			}
 		}
@@ -86,7 +83,7 @@ func main() {
 		if err == nil {
 			Init(file)
 		} else {
-			handleError(err, "Initialize error")
+			handleFatalError(err, "Initialize error")
 		}
 	} else {
 		Init(os.Stdout)
@@ -97,7 +94,7 @@ func main() {
 		}
 		youTubeService, err := youtube.New(youTubeClient)
 		if err != nil {
-			handleError(err, "Initialize error")
+			handleFatalError(err, "Initialize error")
 		}
 		// Sets your Google Cloud Platform project ID.
 		projectID := "youtube-analyzer-206211"
@@ -106,7 +103,7 @@ func main() {
 		ctx := context.Background()
 		bigQueryClient, err := bigquery.NewClient(ctx, projectID)
 		if err != nil {
-			handleError(err, "Initialize error")
+			handleFatalError(err, "Initialize error")
 		}
 
 		if len(*channels) > 0 {

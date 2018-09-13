@@ -14,7 +14,7 @@ func handleApiError(err error) bool {
 	return true
 }
 
-func handleError(err error, message string) {
+func handleFatalError(err error, message string) {
 	if err != nil {
 		Error.Fatalf(message + ": %v", err.Error())
 	}

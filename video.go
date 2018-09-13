@@ -5,6 +5,7 @@ import (
 	"strings"
 	"cloud.google.com/go/bigquery"
 	"strconv"
+	"golang.org/x/net/context"
 )
 
 type Video struct {
@@ -57,7 +58,8 @@ func (i Video) Save() (map[string]bigquery.Value, string, error) {
 	}, i.Id, nil
 }
 
-func setVideosAdditionalParametersFromResponse(result *map[string]Video, videosChannel chan Video, response *youtube.VideoListResponse, channelId string) {
+func setVideosAdditionalParametersFromResponse(result *map[string]Video, videosChannel chan Video, response *youtube.VideoListResponse, channelId string) []Video {
+	v := make([]Video, 0)
 	for _, item := range response.Items {
 		r := *result
 		video := r[item.Id]
@@ -81,12 +83,13 @@ func setVideosAdditionalParametersFromResponse(result *map[string]Video, videosC
 		video.HasCustomThumbnail = item.ContentDetails.HasCustomThumbnail
 		video.Title = item.Snippet.Title
 		r[video.Id] = video
+		v = append(v, video)
 		videosChannel <- video
 	}
-
+	return v
 }
 
-func batchLoadVideosInfo(service *youtube.Service, videosChannel chan Video, videosMap *map[string]Video, channelId string) {
+func batchLoadVideosInfo(ctx context.Context, service *youtube.Service, videosChannel chan Video, videosMap *map[string]Video, channelId string, client *bigquery.Client) {
 	keys := make([]string, 0, len(*videosMap))
 	for k := range *videosMap {
 		keys = append(keys, k)
@@ -114,7 +117,8 @@ func batchLoadVideosInfo(service *youtube.Service, videosChannel chan Video, vid
 		} else {
 			keys = keys[len(keys):]
 		}
-		setVideosAdditionalParametersFromResponse(videosMap, videosChannel, response, channelId)
+		videos := setVideosAdditionalParametersFromResponse(videosMap, videosChannel, response, channelId)
+		go loadVideosToBigQuery(ctx, videos, channelId, client)
 	}
 	close(videosChannel)
 }
@@ -147,9 +151,9 @@ func addVideosFromVideoListResponseToMap(result map[string]Video, response *yout
 	return result
 }
 
-func getVideosByChannel(channel *Channel, videosChannel chan Video, service *youtube.Service) {
+func getVideosByChannel(ctx context.Context, channel *Channel, videosChannel chan Video, service *youtube.Service, client *bigquery.Client) {
 	Info.Printf("Channel: [%v] Processing videos\n", channel.Id)
-	batchLoadVideosInfo(service, videosChannel, &channel.Videos, channel.Id)
+	batchLoadVideosInfo(ctx, service, videosChannel, &channel.Videos, channel.Id, client)
 }
 
 func getVideosById(videoIds []string, service *youtube.Service) map[string]Video {
