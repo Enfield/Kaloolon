@@ -4,8 +4,6 @@ import (
 	"flag"
 	"google.golang.org/api/youtube/v3"
 	"os"
-	"sync"
-	"strings"
 	"net/http"
 	"google.golang.org/api/googleapi/transport"
 	// Imports the Google Cloud BigQuery client package.
@@ -20,73 +18,17 @@ var (
 	logFile      = flag.String("log-file", "", "Logfile name")
 )
 
-func processVideos(service *youtube.Service) {
-	Info.Println("Start processing videos")
-	//Make the API call to YouTube.
-	videosList := strings.Split(*videos, " ")
-	videosMap := getVideosById(videosList, service)
-	//videos2csv(&videosMap, "")
-	wg := new(sync.WaitGroup)
-	for _, videoId := range videosList {
-		Info.Printf("Video: [%v] Processing video info\n", videoId)
-		if videosMap[videoId].CommentCount > 0 {
-			wg.Add(1)
-			go func(videoId string) {
-				defer wg.Done()
-				//comments2csv(getCommentsByVideo(service, videosMap[videoId]), "")
-			}(videoId)
-		}
-	}
-	wg.Wait()
-}
-
-func processChannels(service *youtube.Service, bigQueryClient *bigquery.Client, ctx context.Context) {
-	Info.Println("Start processing channels")
-	//Make the API call to YouTube.
-	channelsList := strings.Split(*channels, " ")
-	semaphore := make(chan struct{}, 250)
-	wg := new(sync.WaitGroup)
-	for _, channelId := range channelsList {
-		videosChannel := make(chan Video)
-		var channel Channel
-		wg.Add(1)
-		go func(channelId string) {
-			semaphore <- struct{}{}
-			defer func() {
-				<-semaphore
-				wg.Done()
-			}()
-			channel = getChannel(channelId, service)
-			go loadChannelsToBigQuery(ctx, &channel, bigQueryClient)
-			getVideosByChannel(ctx, &channel, videosChannel, service, bigQueryClient)
-		}(channelId)
-		for video := range videosChannel {
-			if video.CommentCount > 0 {
-				wg.Add(1)
-				go func(video Video) {
-					semaphore <- struct{}{}
-					defer func() {
-						<-semaphore
-						wg.Done()
-					}()
-					getCommentsByVideo(ctx, service, video, bigQueryClient)
-				}(video)
-			}
-		}
-	}
-	wg.Wait()
-}
 func main() {
 	flag.Parse()
 	if len(*logFile) > 0 {
 		file, err := os.OpenFile(*logFile, os.O_CREATE|os.O_WRONLY, 0644)
 		if err == nil {
-			Init(file)
+			InitLogger(file)
 		} else {
-			handleFatalError(err, "Initialize error")
+			HandleFatalError(err, "Initialize error")
 		}
 	} else {
-		Init(os.Stdout)
+		InitLogger(os.Stdout)
 	}
 	if len(*channels) > 0 || len(*videos) > 0 {
 		youTubeClient := &http.Client{
@@ -94,7 +36,7 @@ func main() {
 		}
 		youTubeService, err := youtube.New(youTubeClient)
 		if err != nil {
-			handleFatalError(err, "Initialize error")
+			HandleFatalError(err, "Initialize error")
 		}
 		// Sets your Google Cloud Platform project ID.
 		projectID := "youtube-analyzer-206211"
@@ -103,15 +45,10 @@ func main() {
 		ctx := context.Background()
 		bigQueryClient, err := bigquery.NewClient(ctx, projectID)
 		if err != nil {
-			handleFatalError(err, "Initialize error")
+			HandleFatalError(err, "Initialize error")
 		}
-
-		if len(*channels) > 0 {
-			processChannels(youTubeService, bigQueryClient, ctx)
-		}
-		if len(*videos) > 0 {
-			processVideos(youTubeService)
-		}
+		processor :=  NewProcessor(bigQueryClient, youTubeService, ctx)
+		processor.ProcessChannels(channels)
 	} else {
 		Error.Println("Please provide channel or video to process.")
 	}

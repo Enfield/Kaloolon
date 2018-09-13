@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-func loadCommentsToBigQuery(ctx context.Context, channelId string, videoId string, comments []Comment, client *bigquery.Client) {
+func LoadCommentsToBigQuery(ctx context.Context, channelId string, videoId string, comments []Comment, client *bigquery.Client) {
 	if len(comments) > 0 {
 		u := client.Dataset("comments").Table("cm").Uploader()
 		u.SkipInvalidRows = true
@@ -15,30 +15,30 @@ func loadCommentsToBigQuery(ctx context.Context, channelId string, videoId strin
 		ctxWithTimeout, cancel := context.WithTimeout(ctx, time.Minute)
 		defer cancel()
 		if err := u.Put(ctxWithTimeout, comments); err != nil {
-			handleApiError(err)
+			HandleApiError(err)
 		}
 		ctxWithTimeout.Done()
 	}
 }
 
-func loadVideosToBigQuery(ctx context.Context, videos []Video, channelId string, client *bigquery.Client) {
+func (p *Playlist) LoadToBigQuery(videos []Video) {
 	if len(videos) > 0 {
-		u := client.Dataset("videos").Table("vi").Uploader()
+		u := p.BigQueryClient.Dataset("videos").Table("vi").Uploader()
 		u.SkipInvalidRows = true
-		u.TableTemplateSuffix = "_" + strings.Replace(channelId, "-", "__", -1)
-		ctxWithTimeout, cancel := context.WithTimeout(ctx, time.Minute)
+		u.TableTemplateSuffix = "_" + strings.Replace(p.Channel.Id, "-", "__", -1)
+		ctxWithTimeout, cancel := context.WithTimeout(p.Ctx, time.Minute)
 		defer cancel()
 		if err := u.Put(ctxWithTimeout, videos); err != nil {
-			handleApiError(err)
+			HandleApiError(err)
 		}
 	}
 }
 
-func loadChannelsToBigQuery(ctx context.Context, channel *Channel, client *bigquery.Client) {
-	u := client.Dataset("channels").Table("ch").Uploader()
-	ctxWithTimeout, cancel := context.WithTimeout(ctx, time.Minute)
+func (c *Channel) LoadToBigQuery() {
+	u := c.BigQueryClient.Dataset("channels").Table("ch").Uploader()
+	ctxWithTimeout, cancel := context.WithTimeout(c.Ctx, time.Minute)
 	defer cancel()
-	if err := u.Put(ctxWithTimeout, channel); err != nil {
-		handleApiError(err)
+	if err := u.Put(ctxWithTimeout, c); err != nil {
+		HandleApiError(err)
 	}
 }

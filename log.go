@@ -12,7 +12,7 @@ var (
 	Error   *log.Logger
 )
 
-func Init(logHandle io.Writer) {
+func InitLogger(logHandle io.Writer) {
 
 	Debug = log.New(logHandle,
 		"DEBUG: ",

@@ -2,7 +2,7 @@ package main
 
 import "strings"
 
-func handleApiError(err error) bool {
+func HandleApiError(err error) bool {
 	if err != nil {
 		msg := err.Error()
 		if strings.Contains(msg, "quotaExceeded"){
@@ -14,7 +14,7 @@ func handleApiError(err error) bool {
 	return true
 }
 
-func handleFatalError(err error, message string) {
+func HandleFatalError(err error, message string) {
 	if err != nil {
 		Error.Fatalf(message + ": %v", err.Error())
 	}

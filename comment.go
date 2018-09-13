@@ -44,13 +44,13 @@ func (i Comment) Save() (map[string]bigquery.Value, string, error) {
 	}, i.Id, nil
 }
 
-func getCommentsByVideo(ctx context.Context, service *youtube.Service, video Video, client *bigquery.Client) {
+func (v *Video) LoadComments() {
 	var commentCounter uint64 = 0
 	Info.Printf("Video:   [%v] Starting processing comments\n", video.Id)
-	call := service.CommentThreads.List("snippet").VideoId(video.Id).MaxResults(100)
+	call := v.service.CommentThreads.List("snippet").VideoId(video.Id).MaxResults(100)
 	response, err := call.Do()
 	i := 0
-	for !handleApiError(err) {
+	for !HandleApiError(err) {
 		if i == 5 {
 			Error.Fatalf(err.Error())
 		}
@@ -58,14 +58,14 @@ func getCommentsByVideo(ctx context.Context, service *youtube.Service, video Vid
 		i++
 	}
 	comments := commentThreadsFromResponse(response, service, video, &commentCounter)
-	go loadCommentsToBigQuery(ctx, video.ChannelId, video.Id, comments, client)
+	go LoadCommentsToBigQuery(ctx, video.ChannelId, video.Id, comments, client)
 	nextPageToken := response.NextPageToken
 	for len(nextPageToken) > 0 {
 		Info.Printf("Video:   [%v] Downloaded %.2f%%\n", video.Id, float64(atomic.LoadUint64(&commentCounter))/float64(video.CommentCount)*100)
 		call := service.CommentThreads.List("snippet").VideoId(video.Id).MaxResults(100).PageToken(nextPageToken)
 		response, err := call.Do()
 		i := 0
-		for !handleApiError(err) {
+		for !HandleApiError(err) {
 			if i == 5 {
 				Error.Fatalf(err.Error())
 			}
@@ -73,7 +73,7 @@ func getCommentsByVideo(ctx context.Context, service *youtube.Service, video Vid
 			i++
 		}
 		comments := commentThreadsFromResponse(response, service, video, &commentCounter)
-		go loadCommentsToBigQuery(ctx, video.ChannelId, video.Id, comments, client)
+		go LoadCommentsToBigQuery(ctx, video.ChannelId, video.Id, comments, client)
 		nextPageToken = response.NextPageToken
 	}
 	Info.Printf("Video:   [%v] Downloaded 100%% Total: %d\n", video.Id, atomic.LoadUint64(&commentCounter))
@@ -88,7 +88,7 @@ func commentThreadsFromResponse(response *youtube.CommentThreadListResponse, ser
 			call := service.Comments.List("snippet").ParentId(item.Snippet.TopLevelComment.Id).MaxResults(100)
 			response, err := call.Do()
 			i := 0
-			for !handleApiError(err) {
+			for !HandleApiError(err) {
 				if i == 5 {
 					Error.Fatalf(err.Error())
 				}
@@ -105,7 +105,7 @@ func commentThreadsFromResponse(response *youtube.CommentThreadListResponse, ser
 				call := service.Comments.List("snippet").ParentId(item.Snippet.TopLevelComment.Id).MaxResults(100).PageToken(nextPageToken)
 				response, err := call.Do()
 				i := 0
-				for !handleApiError(err) {
+				for !HandleApiError(err) {
 					if i == 5 {
 						Error.Fatalf(err.Error())
 					}
