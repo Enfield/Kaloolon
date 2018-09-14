@@ -1,10 +1,10 @@
 package main
 
 import (
-	"google.golang.org/api/youtube/v3"
 	"cloud.google.com/go/bigquery"
-	"golang.org/x/net/context"
 	"sync/atomic"
+	"sync"
+	"google.golang.org/api/youtube/v3"
 )
 
 type Comment struct {
@@ -44,10 +44,10 @@ func (i Comment) Save() (map[string]bigquery.Value, string, error) {
 	}, i.Id, nil
 }
 
-func (v *Video) LoadComments() {
+func (v *Video) LoadComments(wg *sync.WaitGroup) {
 	var commentCounter uint64 = 0
-	Info.Printf("Video:   [%v] Starting processing comments\n", video.Id)
-	call := v.service.CommentThreads.List("snippet").VideoId(video.Id).MaxResults(100)
+	Info.Printf("Channel:[%v] Playlist:[%v] Video: [%v] Starting processing comments\n", v.Plist.Channel.Id, v.Plist.PlaylistId, v.Id)
+	call := v.YouTubeService.CommentThreads.List("snippet").VideoId(v.Id).MaxResults(100)
 	response, err := call.Do()
 	i := 0
 	for !HandleApiError(err) {
@@ -57,12 +57,18 @@ func (v *Video) LoadComments() {
 		response, err = call.Do()
 		i++
 	}
-	comments := commentThreadsFromResponse(response, service, video, &commentCounter)
-	go LoadCommentsToBigQuery(ctx, video.ChannelId, video.Id, comments, client)
+	comments := v.commentThreadsFromResponse(response, &commentCounter)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		v.LoadToBigQuery(comments)
+	}()
 	nextPageToken := response.NextPageToken
 	for len(nextPageToken) > 0 {
-		Info.Printf("Video:   [%v] Downloaded %.2f%%\n", video.Id, float64(atomic.LoadUint64(&commentCounter))/float64(video.CommentCount)*100)
-		call := service.CommentThreads.List("snippet").VideoId(video.Id).MaxResults(100).PageToken(nextPageToken)
+		Info.Printf("Channel:[%v] Playlist:[%v] Video: [%v] Downloaded %.2f%%\n",
+			v.Plist.Channel.Id, v.Plist.PlaylistId, v.Id,
+			float64(atomic.LoadUint64(&commentCounter))/float64(v.CommentCount)*100)
+		call := v.YouTubeService.CommentThreads.List("snippet").VideoId(v.Id).MaxResults(100).PageToken(nextPageToken)
 		response, err := call.Do()
 		i := 0
 		for !HandleApiError(err) {
@@ -72,20 +78,39 @@ func (v *Video) LoadComments() {
 			response, err = call.Do()
 			i++
 		}
-		comments := commentThreadsFromResponse(response, service, video, &commentCounter)
-		go LoadCommentsToBigQuery(ctx, video.ChannelId, video.Id, comments, client)
+		comments := v.commentThreadsFromResponse(response, &commentCounter)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			v.LoadToBigQuery(comments)
+		}()
 		nextPageToken = response.NextPageToken
 	}
-	Info.Printf("Video:   [%v] Downloaded 100%% Total: %d\n", video.Id, atomic.LoadUint64(&commentCounter))
+	Info.Printf("Channel:[%v] Playlist:[%v] Video: [%v] Downloaded 100%% Total: %d\n",
+		v.Plist.Channel.Id, v.Plist.PlaylistId, v.Id, atomic.LoadUint64(&commentCounter))
 }
 
-func commentThreadsFromResponse(response *youtube.CommentThreadListResponse, service *youtube.Service, video Video, commentCounter *uint64) [] Comment {
+func (v *Video) commentThreadsFromResponse(response *youtube.CommentThreadListResponse, commentCounter *uint64) [] Comment {
 	comments := make([]Comment, 0)
 	for _, item := range response.Items {
 		atomic.AddUint64(commentCounter, 1)
-		comments = append(comments, comment(item.Snippet.TopLevelComment, video.Id, video.ChannelId))
+		comments = append(comments, Comment{
+			Id:                    item.Id,
+			AuthorDisplayName:     item.Snippet.TopLevelComment.Snippet.AuthorDisplayName,
+			AuthorProfileImageUrl: item.Snippet.TopLevelComment.Snippet.AuthorProfileImageUrl,
+			AuthorChannelUrl:      item.Snippet.TopLevelComment.Snippet.AuthorChannelUrl,
+			VideoId:               v.Id,
+			ChannelId:             v.Plist.Channel.Id,
+			ParentId:              item.Snippet.TopLevelComment.Snippet.ParentId,
+			CanRate:               item.Snippet.TopLevelComment.Snippet.CanRate,
+			ViewerRating:          item.Snippet.TopLevelComment.Snippet.ViewerRating,
+			LikeCount:             item.Snippet.TopLevelComment.Snippet.LikeCount,
+			ModerationStatus:      item.Snippet.TopLevelComment.Snippet.ModerationStatus,
+			PublishedAt:           item.Snippet.TopLevelComment.Snippet.PublishedAt,
+			UpdatedAt:             item.Snippet.TopLevelComment.Snippet.UpdatedAt,
+		})
 		if item.Snippet.TotalReplyCount > 0 {
-			call := service.Comments.List("snippet").ParentId(item.Snippet.TopLevelComment.Id).MaxResults(100)
+			call := v.YouTubeService.Comments.List("snippet").ParentId(item.Snippet.TopLevelComment.Id).MaxResults(100)
 			response, err := call.Do()
 			i := 0
 			for !HandleApiError(err) {
@@ -97,12 +122,28 @@ func commentThreadsFromResponse(response *youtube.CommentThreadListResponse, ser
 			}
 			for _, i := range response.Items {
 				atomic.AddUint64(commentCounter, 1)
-				comments = append(comments, comment(i, video.Id, video.ChannelId))
+				comments = append(comments, Comment{
+					Id:                    i.Id,
+					AuthorDisplayName:     i.Snippet.AuthorDisplayName,
+					AuthorProfileImageUrl: i.Snippet.AuthorProfileImageUrl,
+					AuthorChannelUrl:      i.Snippet.AuthorChannelUrl,
+					VideoId:               v.Id,
+					ChannelId:             v.Plist.Channel.Id,
+					ParentId:              i.Snippet.ParentId,
+					CanRate:               i.Snippet.CanRate,
+					ViewerRating:          i.Snippet.ViewerRating,
+					LikeCount:             i.Snippet.LikeCount,
+					ModerationStatus:      i.Snippet.ModerationStatus,
+					PublishedAt:           i.Snippet.PublishedAt,
+					UpdatedAt:             i.Snippet.UpdatedAt,
+				})
 			}
 			nextPageToken := response.NextPageToken
 			for len(nextPageToken) > 0 {
-				Info.Printf("Video:   [%v] Downloaded %.2f%%\n", video.Id, float64(atomic.LoadUint64(commentCounter))/float64(video.CommentCount)*100)
-				call := service.Comments.List("snippet").ParentId(item.Snippet.TopLevelComment.Id).MaxResults(100).PageToken(nextPageToken)
+				Info.Printf("Channel:[%v] Playlist:[%v] Video: [%v] Downloaded %.2f%%\n",
+					v.Plist.Channel.Id, v.Plist.PlaylistId, v.Id,
+					float64(atomic.LoadUint64(commentCounter))/float64(v.CommentCount)*100)
+				call := v.YouTubeService.Comments.List("snippet").ParentId(item.Snippet.TopLevelComment.Id).MaxResults(100).PageToken(nextPageToken)
 				response, err := call.Do()
 				i := 0
 				for !HandleApiError(err) {
@@ -115,28 +156,24 @@ func commentThreadsFromResponse(response *youtube.CommentThreadListResponse, ser
 				nextPageToken = response.NextPageToken
 				for _, item := range response.Items {
 					atomic.AddUint64(commentCounter, 1)
-					comments = append(comments, comment(item, video.Id, video.ChannelId))
+					comments = append(comments, Comment{
+						Id:                    item.Id,
+						AuthorDisplayName:     item.Snippet.AuthorDisplayName,
+						AuthorProfileImageUrl: item.Snippet.AuthorProfileImageUrl,
+						AuthorChannelUrl:      item.Snippet.AuthorChannelUrl,
+						VideoId:               v.Id,
+						ChannelId:             v.Plist.Channel.Id,
+						ParentId:              item.Snippet.ParentId,
+						CanRate:               item.Snippet.CanRate,
+						ViewerRating:          item.Snippet.ViewerRating,
+						LikeCount:             item.Snippet.LikeCount,
+						ModerationStatus:      item.Snippet.ModerationStatus,
+						PublishedAt:           item.Snippet.PublishedAt,
+						UpdatedAt:             item.Snippet.UpdatedAt,
+					})
 				}
 			}
 		}
 	}
 	return comments
-}
-
-func comment(item *youtube.Comment, videoId string, channelId string) Comment {
-	comment := Comment{}
-	comment.Id = item.Id
-	comment.AuthorDisplayName = item.Snippet.AuthorDisplayName
-	comment.AuthorProfileImageUrl = item.Snippet.AuthorProfileImageUrl
-	comment.AuthorChannelUrl = item.Snippet.AuthorChannelUrl
-	comment.VideoId = videoId
-	comment.ChannelId = channelId
-	comment.ParentId = item.Snippet.ParentId
-	comment.CanRate = item.Snippet.CanRate
-	comment.ViewerRating = item.Snippet.ViewerRating
-	comment.LikeCount = item.Snippet.LikeCount
-	comment.ModerationStatus = item.Snippet.ModerationStatus
-	comment.PublishedAt = item.Snippet.PublishedAt
-	comment.UpdatedAt = item.Snippet.UpdatedAt
-	return comment
 }

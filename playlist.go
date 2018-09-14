@@ -9,15 +9,14 @@ import (
 type Playlist struct {
 	YouTubeService *youtube.Service
 	BigQueryClient *bigquery.Client
-	Videos         [] string
+	Videos         []string
 	PlaylistId     string
 	Channel        *Channel
 	Ctx            context.Context
 }
 
-func (p *Playlist) LoadYouTubeData(videosChannel chan string) {
+func (p *Playlist) LoadYouTubeData() {
 	Info.Printf("Channel:[%v] Playlist:[%v] Fetching videos info\n", p.Channel.Id, p.PlaylistId)
-	//TODO proverit contentDetails
 	call := p.YouTubeService.PlaylistItems.List("contentDetails").
 		PlaylistId(p.PlaylistId).MaxResults(50)
 	response, err := call.Do()
@@ -30,7 +29,6 @@ func (p *Playlist) LoadYouTubeData(videosChannel chan string) {
 		i++
 	}
 	for _, i := range response.Items {
-		videosChannel <- i.ContentDetails.VideoId
 		p.Videos = append(p.Videos, i.ContentDetails.VideoId)
 	}
 	pageToken := response.NextPageToken
@@ -47,10 +45,8 @@ func (p *Playlist) LoadYouTubeData(videosChannel chan string) {
 			i++
 		}
 		for _, i := range response.Items {
-			videosChannel <- i.ContentDetails.VideoId
 			p.Videos = append(p.Videos, i.ContentDetails.VideoId)
 		}
 		pageToken = response.NextPageToken
 	}
-	close(videosChannel)
 }

@@ -1,18 +1,17 @@
 package main
 
 import (
-	"cloud.google.com/go/bigquery"
 	"context"
 	"time"
 	"strings"
 )
 
-func LoadCommentsToBigQuery(ctx context.Context, channelId string, videoId string, comments []Comment, client *bigquery.Client) {
+func (v *Video) LoadToBigQuery(comments []Comment) {
 	if len(comments) > 0 {
-		u := client.Dataset("comments").Table("cm").Uploader()
+		u := v.BigQueryClient.Dataset("comments").Table("cm").Uploader()
 		u.SkipInvalidRows = true
-		u.TableTemplateSuffix = "_" + strings.Replace(channelId, "-", "__", -1)
-		ctxWithTimeout, cancel := context.WithTimeout(ctx, time.Minute)
+		u.TableTemplateSuffix = "_" + strings.Replace(v.Plist.Channel.Id, "-", "__", -1)
+		ctxWithTimeout, cancel := context.WithTimeout(v.Ctx, time.Minute)
 		defer cancel()
 		if err := u.Put(ctxWithTimeout, comments); err != nil {
 			HandleApiError(err)

@@ -9,12 +9,12 @@ import (
 	// Imports the Google Cloud BigQuery client package.
 	"cloud.google.com/go/bigquery"
 	"golang.org/x/net/context"
+	"strings"
 )
 
 var (
 	developerKey = flag.String("api-key", "", "Youtube API Developer Key")
 	channels     = flag.String("channel", "", "Channel id(s) to process")
-	videos       = flag.String("video", "", "Video id(s) to process")
 	logFile      = flag.String("log-file", "", "Logfile name")
 )
 
@@ -30,7 +30,7 @@ func main() {
 	} else {
 		InitLogger(os.Stdout)
 	}
-	if len(*channels) > 0 || len(*videos) > 0 {
+	if len(*channels) > 0  {
 		youTubeClient := &http.Client{
 			Transport: &transport.APIKey{Key: *developerKey},
 		}
@@ -48,7 +48,7 @@ func main() {
 			HandleFatalError(err, "Initialize error")
 		}
 		processor :=  NewProcessor(bigQueryClient, youTubeService, ctx)
-		processor.ProcessChannels(channels)
+		processor.ProcessChannels(strings.Split(*channels,","))
 	} else {
 		Error.Println("Please provide channel or video to process.")
 	}

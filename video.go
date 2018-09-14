@@ -6,6 +6,7 @@ import (
 	"cloud.google.com/go/bigquery"
 	"strconv"
 	"golang.org/x/net/context"
+	"sync"
 )
 
 type Video struct {
@@ -30,7 +31,9 @@ type Video struct {
 	FavoriteCount        uint64
 	CommentCount         uint64
 	BigQueryClient       *bigquery.Client
+	YouTubeService       *youtube.Service
 	Ctx                  context.Context
+	Plist                *Playlist
 }
 
 // Save implements the ValueSaver interface.
@@ -60,7 +63,7 @@ func (i Video) Save() (map[string]bigquery.Value, string, error) {
 	}, i.Id, nil
 }
 
-func (p *Playlist) setVideosAdditionalParametersFromResponse(response *youtube.VideoListResponse) []Video {
+func (p *Playlist) setVideosAdditionalParametersFromResponse(response *youtube.VideoListResponse, videosChannel chan *Video) []Video {
 	v := make([]Video, 0)
 	for _, item := range response.Items {
 		v = append(v, Video{
@@ -85,11 +88,12 @@ func (p *Playlist) setVideosAdditionalParametersFromResponse(response *youtube.V
 			HasCustomThumbnail:   item.ContentDetails.HasCustomThumbnail,
 			Title:                item.Snippet.Title,
 		})
+		videosChannel <- &Video{Id: item.Id, CommentCount: item.Statistics.CommentCount, Ctx: p.Ctx, BigQueryClient: p.BigQueryClient, YouTubeService: p.YouTubeService, Plist: p}
 	}
 	return v
 }
 
-func (p *Playlist) batchLoadVideosInfo() {
+func (p *Playlist) batchLoadVideosInfo(wg *sync.WaitGroup, videosChannel chan *Video) {
 	call := p.YouTubeService.Videos.List("snippet,contentDetails,statistics")
 	for len(p.Videos) > 0 {
 		var ids string
@@ -113,57 +117,17 @@ func (p *Playlist) batchLoadVideosInfo() {
 		} else {
 			p.Videos = p.Videos[len(p.Videos):]
 		}
-		videos := p.setVideosAdditionalParametersFromResponse(response)
-		go p.LoadToBigQuery(videos)
+		videos := p.setVideosAdditionalParametersFromResponse(response, videosChannel)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			p.LoadToBigQuery(videos)
+		}()
 	}
+	close(videosChannel)
 }
 
-func addVideosFromVideoListResponseToMap(result map[string]Video, response *youtube.VideoListResponse) map[string]Video {
-	for _, item := range response.Items {
-		video := Video{}
-		video.Id = item.Id
-		video.Title = item.Snippet.Title
-		video.ChannelId = item.Snippet.ChannelId
-		video.ViewCount = item.Statistics.ViewCount
-		video.LikeCount = item.Statistics.LikeCount
-		video.DislikeCount = item.Statistics.DislikeCount
-		video.FavoriteCount = item.Statistics.FavoriteCount
-		video.CommentCount = item.Statistics.CommentCount
-		video.PublishedAt = item.Snippet.PublishedAt
-		video.LiveBroadcastContent = item.Snippet.LiveBroadcastContent
-		video.DefaultLanguage = item.Snippet.DefaultLanguage
-		video.DefaultAudioLanguage = item.Snippet.DefaultAudioLanguage
-		video.CategoryId = item.Snippet.CategoryId
-		video.Duration = item.ContentDetails.Duration
-		video.Dimension = item.ContentDetails.Dimension
-		video.Definition = item.ContentDetails.Definition
-		video.LicensedContent = item.ContentDetails.LicensedContent
-		video.Caption = item.ContentDetails.Caption
-		video.Projection = item.ContentDetails.Projection
-		video.HasCustomThumbnail = item.ContentDetails.HasCustomThumbnail
-		result[video.Id] = video
-	}
-	return result
-}
-
-func (p *Playlist) LoadVideos() {
+func (p *Playlist) LoadVideos(wg *sync.WaitGroup, videosChannel chan *Video) {
 	Info.Printf("Channel:[%v] Playlist:[%v] Processing videos\n", p.Channel.Id, p.PlaylistId)
-	p.batchLoadVideosInfo()
-}
-
-func getVideosById(videoIds []string, service *youtube.Service) map[string]Video {
-	ids := strings.Join(videoIds[:], ",")
-	videosMap := make(map[string]Video)
-	call := service.Videos.List("snippet,contentDetails,statistics").Id(ids)
-	response, err := call.Do()
-	i := 0
-	for !HandleApiError(err) {
-		if i == 5 {
-			Error.Fatalf(err.Error())
-		}
-		response, err = call.Do()
-		i++
-	}
-	videosMap = addVideosFromVideoListResponseToMap(videosMap, response)
-	return videosMap
+	p.batchLoadVideosInfo(wg, videosChannel)
 }

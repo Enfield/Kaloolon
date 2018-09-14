@@ -2,8 +2,8 @@ package main
 
 import (
 	"cloud.google.com/go/bigquery"
-	"google.golang.org/api/youtube/v3"
 	"golang.org/x/net/context"
+	"google.golang.org/api/youtube/v3"
 )
 
 type Channel struct {
@@ -14,7 +14,7 @@ type Channel struct {
 	YouTubeService *youtube.Service
 	BigQueryClient *bigquery.Client
 	Ctx            context.Context
-	Plist Playlist
+	Plist          Playlist
 }
 
 // Save implements the ValueSaver interface.
@@ -30,14 +30,16 @@ func (c *Channel) Save() (map[string]bigquery.Value, string, error) {
 func (c *Channel) Playlist(id string) *Playlist {
 	c.Plist = Playlist{
 		YouTubeService: c.YouTubeService,
+		BigQueryClient: c.BigQueryClient,
+		Ctx: c.Ctx,
 		PlaylistId:     id,
 		Videos:         make([]string, 0),
-		Channel: c,
+		Channel:        c,
 	}
 	return &c.Plist
 }
 
-func (c *Channel) LoadYouTubeData(videosChannel chan string) {
+func (c *Channel) LoadYouTubeData() {
 	Info.Printf("Channel: [%v] Fetching playlists\n", c.Id)
 	call := c.YouTubeService.Channels.List("snippet,contentDetails").
 		Id(c.Id)
@@ -56,7 +58,6 @@ func (c *Channel) LoadYouTubeData(videosChannel chan string) {
 		c.Title = channelResponse.Snippet.Title
 		c.Thumbnail = channelResponse.Snippet.Thumbnails.Default.Url
 		Info.Printf("Channel:[%v] Playlist:[%v] found", c.Id, channelResponse.ContentDetails.RelatedPlaylists.Uploads)
-		c.Playlist(channelResponse.ContentDetails.RelatedPlaylists.Uploads).LoadYouTubeData(videosChannel)
+		c.Playlist(channelResponse.ContentDetails.RelatedPlaylists.Uploads).LoadYouTubeData()
 	}
-	Error.Fatalf("Can't fetch info for channel: [%v]", c.Id)
 }
