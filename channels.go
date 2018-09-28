@@ -40,7 +40,7 @@ func (c *Channel) Playlist(id string) *Playlist {
 }
 
 func (c *Channel) LoadYouTubeData() {
-	Info.Printf("Channel: [%v] Fetching playlists\n", c.Id)
+	Info.Printf("Channel:[%v] Fetching playlists\n", c.Id)
 	call := c.YouTubeService.Channels.List("snippet,contentDetails").
 		Id(c.Id)
 	response, err := call.Do()
