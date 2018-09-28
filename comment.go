@@ -46,7 +46,7 @@ func (i Comment) Save() (map[string]bigquery.Value, string, error) {
 
 func (v *Video) LoadComments(wg *sync.WaitGroup) {
 	var commentCounter uint64 = 0
-	Info.Printf("Channel:[%v] Playlist:[%v] Video: [%v] Starting processing comments\n", v.Plist.Channel.Id, v.Plist.PlaylistId, v.Id)
+	//Info.Printf("Channel:[%v] Playlist:[%v] Video: [%v] Starting processing comments\n", v.Plist.Channel.Id, v.Plist.PlaylistId, v.Id)
 	call := v.YouTubeService.CommentThreads.List("snippet").VideoId(v.Id).MaxResults(100)
 	response, err := call.Do()
 	i := 0
@@ -65,9 +65,9 @@ func (v *Video) LoadComments(wg *sync.WaitGroup) {
 	}()
 	nextPageToken := response.NextPageToken
 	for len(nextPageToken) > 0 {
-		Info.Printf("Channel:[%v] Playlist:[%v] Video: [%v] Downloaded %.2f%%\n",
-			v.Plist.Channel.Id, v.Plist.PlaylistId, v.Id,
-			float64(atomic.LoadUint64(&commentCounter))/float64(v.CommentCount)*100)
+		//Info.Printf("Channel:[%v] Playlist:[%v] Video: [%v] Downloaded %.2f%%\n",
+		//	v.Plist.Channel.Id, v.Plist.PlaylistId, v.Id,
+		//	float64(atomic.LoadUint64(&commentCounter))/float64(v.CommentCount)*100)
 		call := v.YouTubeService.CommentThreads.List("snippet").VideoId(v.Id).MaxResults(100).PageToken(nextPageToken)
 		response, err := call.Do()
 		i := 0
@@ -86,8 +86,8 @@ func (v *Video) LoadComments(wg *sync.WaitGroup) {
 		}()
 		nextPageToken = response.NextPageToken
 	}
-	Info.Printf("Channel:[%v] Playlist:[%v] Video: [%v] Downloaded 100%% Total: %d\n",
-		v.Plist.Channel.Id, v.Plist.PlaylistId, v.Id, atomic.LoadUint64(&commentCounter))
+	//Info.Printf("Channel:[%v] Playlist:[%v] Video: [%v] Downloaded 100%% Total: %d\n",
+	//	v.Plist.Channel.Id, v.Plist.PlaylistId, v.Id, atomic.LoadUint64(&commentCounter))
 }
 
 func (v *Video) commentThreadsFromResponse(response *youtube.CommentThreadListResponse, commentCounter *uint64) [] Comment {
@@ -140,9 +140,9 @@ func (v *Video) commentThreadsFromResponse(response *youtube.CommentThreadListRe
 			}
 			nextPageToken := response.NextPageToken
 			for len(nextPageToken) > 0 {
-				Info.Printf("Channel:[%v] Playlist:[%v] Video: [%v] Downloaded %.2f%%\n",
-					v.Plist.Channel.Id, v.Plist.PlaylistId, v.Id,
-					float64(atomic.LoadUint64(commentCounter))/float64(v.CommentCount)*100)
+				//Info.Printf("Channel:[%v] Playlist:[%v] Video: [%v] Downloaded %.2f%%\n",
+				//	v.Plist.Channel.Id, v.Plist.PlaylistId, v.Id,
+				//	float64(atomic.LoadUint64(commentCounter))/float64(v.CommentCount)*100)
 				call := v.YouTubeService.Comments.List("snippet").ParentId(item.Snippet.TopLevelComment.Id).MaxResults(100).PageToken(nextPageToken)
 				response, err := call.Do()
 				i := 0

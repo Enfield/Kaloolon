@@ -1,55 +1,60 @@
 package main
 
 import (
-	"flag"
-	"google.golang.org/api/youtube/v3"
-	"os"
-	"net/http"
+	"github.com/gin-gonic/gin"
+	"github.com/itsjamie/gin-cors"
 	"google.golang.org/api/googleapi/transport"
-	// Imports the Google Cloud BigQuery client package.
+	"google.golang.org/api/youtube/v3"
+	"net/http"
+	"os"
+	"time"
+
 	"cloud.google.com/go/bigquery"
-	"golang.org/x/net/context"
-	"strings"
 )
 
 var (
-	developerKey = flag.String("api-key", "", "Youtube API Developer Key")
-	channels     = flag.String("channel", "", "Channel id(s) to process")
-	logFile      = flag.String("log-file", "", "Logfile name")
+	developerKey = "AIzaSyArihz4MAJjQTVN7Qd73MX-LD8e8x9msXY"
 )
 
-func main() {
-	flag.Parse()
-	if len(*logFile) > 0 {
-		file, err := os.OpenFile(*logFile, os.O_CREATE|os.O_WRONLY, 0644)
-		if err == nil {
-			InitLogger(file)
-		} else {
-			HandleFatalError(err, "Initialize error")
-		}
-	} else {
-		InitLogger(os.Stdout)
-	}
-	if len(*channels) > 0  {
+func setupRouter() *gin.Engine {
+	projectID := "youtube-analyzer-206211"
+	// Disable Console Color
+	// gin.DisableConsoleColor()
+	r := gin.Default()
+	//r.Use(gin.Logger())
+	r.Use(gin.Recovery())
+	r.Use(cors.Middleware(cors.Config{
+		Origins:         "*",
+		Methods:         "GET, PUT, POST, DELETE",
+		RequestHeaders:  "Origin, Authorization, Content-Type, x-client-token",
+		ExposedHeaders:  "",
+		MaxAge:          60 * time.Minute,
+		Credentials:     true,
+		ValidateHeaders: false,
+	}))
+	r.POST("/channels/:channelId", func(ctx *gin.Context) {
 		youTubeClient := &http.Client{
-			Transport: &transport.APIKey{Key: *developerKey},
+			Transport: &transport.APIKey{Key: developerKey},
 		}
 		youTubeService, err := youtube.New(youTubeClient)
 		if err != nil {
 			HandleFatalError(err, "Initialize error")
 		}
-		// Sets your Google Cloud Platform project ID.
-		projectID := "youtube-analyzer-206211"
-
-		// Creates a client.
-		ctx := context.Background()
 		bigQueryClient, err := bigquery.NewClient(ctx, projectID)
 		if err != nil {
 			HandleFatalError(err, "Initialize error")
 		}
-		processor :=  NewProcessor(bigQueryClient, youTubeService, ctx)
-		processor.ProcessChannels(strings.Split(*channels,","))
-	} else {
-		Error.Println("Please provide channel or video to process.")
-	}
+		processor := NewProcessor(bigQueryClient, youTubeService, ctx)
+		cCp := ctx.Copy()
+		totalVideosCh := make(chan int)
+		go processor.ProcessChannels(cCp, cCp.Param("channelId"), totalVideosCh)
+		ctx.JSON(http.StatusOK, gin.H{"channelId": cCp.Param("channelId"), "videosCount": <- totalVideosCh})
+	})
+	return r
+}
+
+func main() {
+	InitLogger(os.Stdout)
+	r := setupRouter()
+	r.Run(":8081")
 }
