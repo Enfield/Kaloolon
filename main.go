@@ -52,7 +52,7 @@ func setupRouter() *gin.Engine {
 			go processor.ProcessChannel(cCp, channelId, ch)
 			<-ch
 		}
-		ctx.JSON(http.StatusOK, gin.H{"channelId": channelId})
+		ctx.JSON(http.StatusOK, gin.H{"id": channelId})
 	})
 	return r
 }
