@@ -31,8 +31,8 @@ func (p *Processor) Channel(id string) *Channel {
 	}
 }
 
-func (p *Processor) ProcessChannels(ctx *gin.Context, channelId string, totalVideosCh chan int) {
-	Info.Println("Start processing channels")
+func (p *Processor) ProcessChannel(ctx *gin.Context, channelId string, ch chan int) {
+	Info.Printf("Channel:[%v] Start processing\n", channelId)
 	//max 250 requests per channel
 	semaphore := make(chan struct{}, 250)
 	wg := new(sync.WaitGroup)
@@ -46,7 +46,7 @@ func (p *Processor) ProcessChannels(ctx *gin.Context, channelId string, totalVid
 		}()
 		channel := p.Channel(channelId)
 		channel.LoadYouTubeData()
-		totalVideosCh <- len(channel.Plist.Videos)
+		ch <- len(channel.Plist.Videos)
 		wg.Add(1)
 		go func() {
 			defer wg.Done()

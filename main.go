@@ -33,22 +33,26 @@ func setupRouter() *gin.Engine {
 		ValidateHeaders: false,
 	}))
 	r.POST("/channels/:channelId", func(ctx *gin.Context) {
-		youTubeClient := &http.Client{
-			Transport: &transport.APIKey{Key: developerKey},
-		}
-		youTubeService, err := youtube.New(youTubeClient)
-		if err != nil {
-			HandleFatalError(err, "Initialize error")
-		}
+		channelId := ctx.Param("channelId")
 		bigQueryClient, err := bigquery.NewClient(ctx, projectID)
 		if err != nil {
 			HandleFatalError(err, "Initialize error")
 		}
-		processor := NewProcessor(bigQueryClient, youTubeService, ctx)
-		cCp := ctx.Copy()
-		totalVideosCh := make(chan int)
-		go processor.ProcessChannels(cCp, cCp.Param("channelId"), totalVideosCh)
-		ctx.JSON(http.StatusOK, gin.H{"channelId": cCp.Param("channelId"), "videosCount": <- totalVideosCh})
+		if !IsLoadedToBigQuery(ctx, channelId, bigQueryClient) {
+			youTubeClient := &http.Client{
+				Transport: &transport.APIKey{Key: developerKey},
+			}
+			youTubeService, err := youtube.New(youTubeClient)
+			if err != nil {
+				HandleFatalError(err, "Initialize error")
+			}
+			processor := NewProcessor(bigQueryClient, youTubeService, ctx)
+			cCp := ctx.Copy()
+			ch := make(chan int)
+			go processor.ProcessChannel(cCp, channelId, ch)
+			<-ch
+		}
+		ctx.JSON(http.StatusOK, gin.H{"channelId": channelId})
 	})
 	return r
 }
