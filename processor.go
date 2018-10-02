@@ -49,14 +49,12 @@ func (p *Processor) ProcessChannel(ctx *gin.Context, channelId string, exitChann
 		//wrong channelID
 		if channel.Plist.PlaylistId != "" {
 			exitChannel <- 0
-			if !IsLoadedToBigQuery(ctx, channelId, p.BigQueryClient) {
-				wg.Add(1)
-				go func() {
-					defer wg.Done()
-					channel.LoadToBigQuery()
-				}()
-				channel.Plist.LoadVideos(wg, videosChannel)
-			}
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				channel.LoadToBigQuery()
+			}()
+			channel.Plist.LoadVideos(wg, videosChannel)
 		} else {
 			exitChannel <- 1
 			Info.Printf("Channel:[%v] Playlist with channel videos not found. Possibly wrong channelId.\n", channelId)
