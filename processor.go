@@ -31,7 +31,7 @@ func (p *Processor) Channel(id string) *Channel {
 	}
 }
 
-func (p *Processor) ProcessChannel(ctx *gin.Context, channelId string, ch chan int) {
+func (p *Processor) ProcessChannel(ctx *gin.Context, channelId string, exitChannel chan int) {
 	Info.Printf("Channel:[%v] Start processing\n", channelId)
 	//max 250 requests per channel
 	semaphore := make(chan struct{}, 250)
@@ -46,13 +46,20 @@ func (p *Processor) ProcessChannel(ctx *gin.Context, channelId string, ch chan i
 		}()
 		channel := p.Channel(channelId)
 		channel.LoadYouTubeData()
-		ch <- len(channel.Plist.Videos)
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			channel.LoadToBigQuery()
-		}()
-		channel.Plist.LoadVideos(wg, videosChannel)
+		//wrong channelID
+		if channel.Plist.PlaylistId != "" {
+			exitChannel <- 0
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				channel.LoadToBigQuery()
+			}()
+			channel.Plist.LoadVideos(wg, videosChannel)
+		} else {
+			exitChannel <- 1
+			Info.Printf("Channel:[%v] Playlist with channel videos not found. Possibly wrong channelId.\n", channelId)
+			close(videosChannel)
+		}
 	}(channelId)
 	for video := range videosChannel {
 		if video.CommentCount > 0 {

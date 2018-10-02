@@ -33,6 +33,7 @@ func setupRouter() *gin.Engine {
 		ValidateHeaders: false,
 	}))
 	r.POST("/channels/:channelId", func(ctx *gin.Context) {
+		var exitCode int
 		channelId := ctx.Param("channelId")
 		bigQueryClient, err := bigquery.NewClient(ctx, projectID)
 		if err != nil {
@@ -50,9 +51,14 @@ func setupRouter() *gin.Engine {
 			cCp := ctx.Copy()
 			ch := make(chan int)
 			go processor.ProcessChannel(cCp, channelId, ch)
-			<-ch
+			exitCode = <-ch
 		}
-		ctx.JSON(http.StatusOK, gin.H{"id": channelId})
+		switch exitCode {
+		case 0:
+			ctx.JSON(http.StatusOK, gin.H{"id": channelId})
+		case 1:
+			ctx.JSON(http.StatusOK, gin.H{"error": "Something went wrong"})
+		}
 	})
 	return r
 }
