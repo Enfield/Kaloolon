@@ -33,7 +33,7 @@ func (p *Processor) Channel(id string) *Channel {
 
 func (p *Processor) ProcessChannel(ctx *gin.Context, channelId string, exitChannel chan int) {
 	Info.Printf("Channel:[%v] Start processing\n", channelId)
-	//max 250 requests per channel
+	//max 250 goroutines per channel
 	semaphore := make(chan struct{}, 250)
 	wg := new(sync.WaitGroup)
 	videosChannel := make(chan *Video)
@@ -49,12 +49,14 @@ func (p *Processor) ProcessChannel(ctx *gin.Context, channelId string, exitChann
 		//wrong channelID
 		if channel.Plist.PlaylistId != "" {
 			exitChannel <- 0
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				channel.LoadToBigQuery()
-			}()
-			channel.Plist.LoadVideos(wg, videosChannel)
+			if !IsLoadedToBigQuery(ctx, channelId, p.BigQueryClient) {
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+					channel.LoadToBigQuery()
+				}()
+				channel.Plist.LoadVideos(wg, videosChannel)
+			}
 		} else {
 			exitChannel <- 1
 			Info.Printf("Channel:[%v] Playlist with channel videos not found. Possibly wrong channelId.\n", channelId)

@@ -39,20 +39,18 @@ func setupRouter() *gin.Engine {
 		if err != nil {
 			HandleFatalError(err, "Initialize error")
 		}
-		if !IsLoadedToBigQuery(ctx, channelId, bigQueryClient) {
-			youTubeClient := &http.Client{
-				Transport: &transport.APIKey{Key: developerKey},
-			}
-			youTubeService, err := youtube.New(youTubeClient)
-			if err != nil {
-				HandleFatalError(err, "Initialize error")
-			}
-			processor := NewProcessor(bigQueryClient, youTubeService, ctx)
-			cCp := ctx.Copy()
-			ch := make(chan int)
-			go processor.ProcessChannel(cCp, channelId, ch)
-			exitCode = <-ch
+		youTubeClient := &http.Client{
+			Transport: &transport.APIKey{Key: developerKey},
 		}
+		youTubeService, err := youtube.New(youTubeClient)
+		if err != nil {
+			HandleFatalError(err, "Initialize error")
+		}
+		processor := NewProcessor(bigQueryClient, youTubeService, ctx)
+		cCp := ctx.Copy()
+		ch := make(chan int)
+		go processor.ProcessChannel(cCp, channelId, ch)
+		exitCode = <-ch
 		switch exitCode {
 		case 0:
 			ctx.JSON(http.StatusOK, gin.H{"id": channelId})
