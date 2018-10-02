@@ -60,6 +60,15 @@ func setupRouter() *gin.Engine {
 			ctx.JSON(http.StatusOK, gin.H{"error": "Something went wrong"})
 		}
 	})
+
+	r.GET("/channels/:channelId", func(ctx *gin.Context) {
+		channelId := ctx.Param("channelId")
+		bigQueryClient, err := bigquery.NewClient(ctx, projectID)
+		if err != nil {
+			HandleFatalError(err, "Initialize error")
+		}
+		GetChannelVideosCountAndStatus(ctx, channelId, bigQueryClient)
+	})
 	return r
 }
 
