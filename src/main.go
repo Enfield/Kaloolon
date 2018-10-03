@@ -36,6 +36,7 @@ func setupRouter() *gin.Engine {
 		var exitCode int
 		channelId := ctx.Param("channelId")
 		bigQueryClient, err := bigquery.NewClient(ctx, projectID)
+		defer bigQueryClient.Close()
 		if err != nil {
 			HandleFatalError(err, "Initialize error")
 		}
@@ -64,6 +65,7 @@ func setupRouter() *gin.Engine {
 	r.GET("/channels/:channelId", func(ctx *gin.Context) {
 		channelId := ctx.Param("channelId")
 		bigQueryClient, err := bigquery.NewClient(ctx, projectID)
+		defer bigQueryClient.Close()
 		if err != nil {
 			HandleFatalError(err, "Initialize error")
 		}

@@ -5,6 +5,6 @@ COPY ./src /go/src/github.com/enfield/kaloolon/src
 WORKDIR /go/src/github.com/enfield/kaloolon/src
 
 RUN go get ./
-RUN go build
+RUN go build -o kaloolon
 
-ENTRYPOINT ["kaloolon"]
+ENTRYPOINT ["/go/src/github.com/enfield/kaloolon/src/kaloolon"]
