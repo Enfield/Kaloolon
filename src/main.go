@@ -75,5 +75,5 @@ func setupRouter() *gin.Engine {
 func main() {
 	InitLogger(os.Stdout)
 	r := setupRouter()
-	r.Run(":8081")
+	r.Run(":8080")
 }
