@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kaloolon
+  labels:
+    app: kaloolon
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kaloolon
+  template:
+    metadata:
+      labels:
+        app: kaloolon
+    spec:
+      containers:
+      - name: kaloolon
+        image: gcr.io/youtube-analyzer-206211/kaloolon:latest
+        ports:
+        - containerPort: 8080
+      tolerations:
+      - key: "kaloolon"
+        operator: "Equal"
+        value: "true"
+        effect: "NoSchedule"
