@@ -11,6 +11,7 @@ type Channel struct {
 	Title          string
 	Description    string
 	Thumbnail      string
+	Status         string
 	YouTubeService *youtube.Service
 	BigQueryClient *bigquery.Client
 	Ctx            context.Context
@@ -24,6 +25,7 @@ func (c *Channel) Save() (map[string]bigquery.Value, string, error) {
 		"Title":       c.Title,
 		"Description": c.Description,
 		"Thumbnail":   c.Thumbnail,
+		"Status":      c.Status,
 	}, c.Id, nil
 }
 
@@ -31,7 +33,7 @@ func (c *Channel) Playlist(id string) *Playlist {
 	c.Plist = Playlist{
 		YouTubeService: c.YouTubeService,
 		BigQueryClient: c.BigQueryClient,
-		Ctx: c.Ctx,
+		Ctx:            c.Ctx,
 		PlaylistId:     id,
 		Videos:         make([]string, 0),
 		Channel:        c,

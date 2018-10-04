@@ -56,16 +56,24 @@ func IsLoadedToBigQuery(ctx context.Context, channelId string, c *bigquery.Clien
 	return isAlreadyLoded
 }
 
-type ChannelVideosCountAndStatusResult struct {
-	Status   string
-	VideosCount uint64
+type KaloloonChannelInfo struct {
+	Status        string
+	VideosCount   uint64
+	CommentsCount uint64
 }
 
-func GetChannelVideosCountAndStatus(ctx context.Context, channelId string, c *bigquery.Client) (*ChannelVideosCountAndStatusResult, error) {
+func GetChannelVideosCountAndStatus(ctx context.Context, channelId string, c *bigquery.Client) (*KaloloonChannelInfo, error) {
 	data, err := c.Dataset("videos").Table("vi_" + strings.Replace(channelId, "-", "__", -1)).Metadata(ctx)
 	if err != nil {
 		HandleApiError(err)
 	}
+	videosCount := data.NumRows
+
+	data, err = c.Dataset("comments").Table("cm_" + strings.Replace(channelId, "-", "__", -1)).Metadata(ctx)
+	if err != nil {
+		HandleApiError(err)
+	}
+	commentsCount := data.NumRows
 	iter, err := c.Query(fmt.Sprintf("select status from `channels.ch` where id = '%s'", channelId)).Read(ctx)
 	if err != nil {
 		HandleApiError(err)
@@ -75,5 +83,5 @@ func GetChannelVideosCountAndStatus(ctx context.Context, channelId string, c *bi
 	if err != nil {
 		return nil, err
 	}
-	return &ChannelVideosCountAndStatusResult{Status: status, VideosCount: data.NumRows}, nil
+	return &KaloloonChannelInfo{Status: status, VideosCount: videosCount, CommentsCount: commentsCount}, nil
 }
