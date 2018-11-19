@@ -2,9 +2,9 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/Enfield/Kaloolon)](https://goreportcard.com/report/github.com/Enfield/Kaloolon)
 [![Maintainability](https://api.codeclimate.com/v1/badges/fb2f399b5f5391538ee2/maintainability)](https://codeclimate.com/github/Enfield/Kaloolon/maintainability)
 # Kaloolon
-It's my pet project that i want to open source.
-A simple web service to collect all comments on all videos from YouTube channel.
-Very fast. Carefully spending YouTube Data API quota.
+It's my pet project that i want to open source.  
+A simple web service to collect all comments on all videos from YouTube channel.  
+Very fast. Carefully spending YouTube Data API quota.  
 Kaloolon written entirely in Go and intensively uses the features of Google Cloud Platform:
 * [BigQuery](https://cloud.google.com/bigquery/) for data storage
 * [Compute Engine](https://cloud.google.com/compute/) for hosts
