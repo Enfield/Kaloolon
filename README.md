@@ -79,6 +79,7 @@ go get ./
 go build -o kaloolon
 ./kaloolon
 ```
+Please note what you need [configure GCP authentication](https://cloud.google.com/bigquery/docs/authentication/)
 ## Usage example
 Api is very simple and provide only one REST method.
 ### Extract data for channel
