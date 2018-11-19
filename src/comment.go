@@ -132,6 +132,7 @@ func (v *Video) commentThreadsFromResponse(response *youtube.CommentThreadListRe
 	return comments
 }
 
+//Comment is a function to create Comment with provided video info
 func (v *Video) Comment(item *youtube.CommentThread) Comment {
 	return Comment{
 		Id:                    item.Id,
