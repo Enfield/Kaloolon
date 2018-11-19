@@ -11,7 +11,7 @@ Kaloolon written entirely in Go and intensively uses the features of Google Clou
 
 Easily can be packaged to Docker container and loaded as POD to [Kubernetes Engine](https://cloud.google.com/kubernetes-engine/)
 
-Kaloolon effectively uses memory and CPU resources and can work without problems on cheapest and slowest GCP host: [f1-micro (0.2 vCPU, 0.6 GB memory](https://cloud.google.com/compute/docs/machine-types)
+Kaloolon effectively uses memory and CPU resources and can work without problems on cheapest and slowest GCP host: [f1-micro (0.2 vCPU, 0.6 GB memory)](https://cloud.google.com/compute/docs/machine-types)
 On f1-micro host Kaloolon can completely extract data for channel like [BroScienceLife](https://www.youtube.com/channel/UCduKuJToxWPizJ7I2E6n1kA) with:
 * 2,200,267 subscribers
 * 130 videos
